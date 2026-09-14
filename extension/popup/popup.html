@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Brigade Bridge</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <div class="header">
+    <span class="mark">✦</span>
+    <strong>Brigade Bridge</strong>
+  </div>
+  <div id="status" class="status disconnected">● Connecting…</div>
+  <script>
+    function updateStatus() {
+      chrome.storage.local.get('bridgeConnected', ({ bridgeConnected }) => {
+        const el = document.getElementById('status');
+        if (bridgeConnected) {
+          el.textContent = '● Connected to daemon';
+          el.className = 'status connected';
+        } else {
+          el.textContent = '● Daemon not found — is Brigade Bridge running?';
+          el.className = 'status disconnected';
+        }
+      });
+    }
+    updateStatus();
+    chrome.storage.onChanged.addListener(updateStatus);
+  </script>
+</body>
+</html>

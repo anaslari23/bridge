@@ -1,0 +1,30 @@
+body {
+  font-family: system-ui, -apple-system, sans-serif;
+  background: #10131a;
+  color: #cdd6f4;
+  width: 260px;
+  padding: 14px;
+  margin: 0;
+}
+.header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.mark {
+  color: #8da5ff;
+  font-size: 18px;
+}
+.status {
+  font-size: 12px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: #1a1f29;
+}
+.connected {
+  color: #56d19a;
+}
+.disconnected {
+  color: #f2a65a;
+}

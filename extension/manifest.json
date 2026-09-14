@@ -1,0 +1,28 @@
+{
+  "manifest_version": 3,
+  "name": "Brigade Bridge",
+  "version": "0.1.0",
+  "description": "Connect agent tabs to the Brigade Bridge overlay",
+  "permissions": ["tabs", "scripting", "storage", "activeTab"],
+  "host_permissions": ["<all_urls>"],
+  "background": {
+    "service_worker": "background/service_worker.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": [
+        "content/adapters/claude.js",
+        "content/adapters/codex.js",
+        "content/adapters/antigravity.js",
+        "content/bridge_content.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_title": "Brigade Bridge"
+  }
+}
