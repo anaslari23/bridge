@@ -42,8 +42,20 @@ does not expose OpenCode permission prompts to Bridge, so OpenCode's own
 confirmation controls remain responsible for its actions. Disconnect and
 reconnect are manual, and Bridge does not store the endpoint or session ID.
 
-Codex CLI/app-server has a possible local route, but its Bridge connector is not
-implemented. Claude Desktop ingress and Antigravity native IDE ingress remain
+Codex is supported through its documented app-server protocol. Start it
+yourself with a loopback listener, for example
+`codex app-server --listen ws://127.0.0.1:4500`, find the thread ID of the
+Codex session you want to use, and send a `CONNECT_CODEX` message to the daemon
+with `serverUrl` and `threadId` (`DISCONNECT_CODEX` with `nodeId` to
+disconnect). There is no settings dialog for it yet. Bridge resumes only that
+thread, reuses Codex's own "Sign in with ChatGPT" login (it never logs in,
+reads credentials, or needs an API key), can relay delegation requests, and
+interrupts the active turn on cancel. Codex approval requests are declined
+automatically because Bridge does not expose them, so grant what the task needs
+inside Codex. File attachments are not supported, and one Bridge task can run
+per Codex thread at a time. The connector is tested against a simulated
+app-server only; it has not yet been run against a real Codex install.
+Claude Desktop ingress and Antigravity native IDE ingress remain
 unverified; their native apps are not presented as connected nodes. Antigravity
 documents a separate CLI route, but Bridge does not use or launch it. Browser
 sessions for Claude, ChatGPT/Codex, Antigravity, and other supported web apps

@@ -11,6 +11,7 @@ import 'permission_manager.dart';
 import 'project_store.dart';
 import 'lead_router.dart';
 import 'delegation_manager.dart';
+import 'codex_connector.dart';
 import 'opencode_connector.dart';
 import 'secret_redactor.dart';
 import 'workflow_engine.dart';
@@ -63,6 +64,60 @@ class WsServer {
   final _researchOwners = <String, WebSocket>{};
   OpenCodeConnector? _openCodeConnector;
   final _openCodeTaskOwners = <String, OpenCodeConnector>{};
+  CodexConnector? _codexConnector;
+  final _codexTaskOwners = <String, CodexConnector>{};
+
+  Future<BridgeNode> connectCodex({
+    required String serverUrl,
+    required String threadId,
+  }) async {
+    final current = _codexConnector;
+    if (current != null) {
+      if (current.threadId != threadId) {
+        throw StateError('Disconnect the current Codex thread first');
+      }
+      await disconnectCodex(current.nodeId);
+    }
+
+    final connector = CodexConnector(
+      serverUrl: serverUrl,
+      threadId: threadId,
+      onNotice: (message) => bus.publish(LogEntry(message, severity: 'warning')),
+    );
+    try {
+      final node = await connector.connect();
+      _codexConnector = connector;
+      await registry.register(node);
+      unawaited(connector.closed.then((_) async {
+        if (identical(_codexConnector, connector)) {
+          await registry.updateHealth(node.id, 'unavailable');
+        }
+      }));
+      return node;
+    } catch (_) {
+      await connector.close();
+      rethrow;
+    }
+  }
+
+  Future<void> disconnectCodex(String nodeId) async {
+    final connector = _codexConnector;
+    if (connector == null || nodeId != connector.nodeId) return;
+    _codexConnector = null;
+    for (final taskId in _codexTaskOwners.entries
+        .where((entry) => entry.value == connector)
+        .map((entry) => entry.key)
+        .toList()) {
+      try {
+        await connector.cancelTask(taskId);
+      } catch (_) {
+        // Closing the connection below fails any remaining request.
+      }
+      _codexTaskOwners.remove(taskId);
+    }
+    await connector.close();
+    await registry.remove(nodeId);
+  }
 
   Future<BridgeNode> connectOpenCode({
     required String serverUrl,
@@ -587,14 +642,21 @@ ${sources.isEmpty ? '(No source links were visible on the connected page.)' : so
     var handoffs = 0;
     while (true) {
       final isOpenCode = task.targetNodeId.startsWith('opencode:');
+      final isCodex = task.targetNodeId.startsWith(CodexConnector.nodeIdPrefix);
       if (isOpenCode && task.attachments.isNotEmpty) {
         throw AdapterDispatchException(
             'OpenCode session connector does not support file attachments');
       }
+      if (isCodex && task.attachments.isNotEmpty) {
+        throw AdapterDispatchException(
+            'Codex thread connector does not support file attachments');
+      }
       final output = isOpenCode
           ? await _sendTaskToOpenCode(task, prompt)
-          : await _sendTaskOnce(task, prompt,
-              includeAttachments: handoffs == 0);
+          : isCodex
+              ? await _sendTaskToCodex(task, prompt)
+              : await _sendTaskOnce(task, prompt,
+                  includeAttachments: handoffs == 0);
       final directive =
           output == null ? null : BridgeProtocol.parseDelegation(output);
       if (directive == null) return output;
@@ -644,6 +706,31 @@ ${sources.isEmpty ? '(No source links were visible on the connected page.)' : so
     } finally {
       if (_openCodeTaskOwners[task.id] == connector) {
         _openCodeTaskOwners.remove(task.id);
+      }
+    }
+  }
+
+  Future<String?> _sendTaskToCodex(BridgeTask task, String prompt) async {
+    final connector = _codexConnector;
+    if (connector == null || task.targetNodeId != connector.nodeId) {
+      throw AdapterDispatchException('Codex thread is unavailable');
+    }
+    _codexTaskOwners[task.id] = connector;
+    try {
+      return await connector.sendTask(task, prompt: prompt);
+    } catch (error) {
+      if (error is CodexSessionBusyException) {
+        throw AdapterDispatchException(
+          'Codex thread already has active work; try again when it finishes',
+        );
+      }
+      await registry.updateHealth(task.targetNodeId, 'unavailable');
+      throw AdapterDispatchException(
+        'Codex thread request failed: ${SecretRedactor.redact(error.toString())}',
+      );
+    } finally {
+      if (_codexTaskOwners[task.id] == connector) {
+        _codexTaskOwners.remove(task.id);
       }
     }
   }
@@ -705,6 +792,11 @@ ${sources.isEmpty ? '(No source links were visible on the connected page.)' : so
     final openCode = _openCodeTaskOwners.remove(bridgeTaskId);
     if (openCode != null) {
       await openCode.cancelTask(bridgeTaskId);
+      return;
+    }
+    final codex = _codexTaskOwners.remove(bridgeTaskId);
+    if (codex != null) {
+      await codex.cancelTask(bridgeTaskId);
       return;
     }
     final externalTaskId = _bridgeTaskExternalIds.remove(bridgeTaskId);
@@ -1007,6 +1099,9 @@ ${sources.isEmpty ? '(No source links were visible on the connected page.)' : so
     final openCode = _openCodeConnector;
     _openCodeConnector = null;
     await openCode?.close();
+    final codex = _codexConnector;
+    _codexConnector = null;
+    await codex?.close();
     for (final ws in _clients) {
       try {
         await ws.close();

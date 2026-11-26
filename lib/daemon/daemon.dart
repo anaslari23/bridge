@@ -252,6 +252,24 @@ class Daemon {
           await server.disconnectOpenCode(msg['nodeId'] as String);
           bus.publish(LogEntry('Disconnected OpenCode session'));
         }
+        if (type == 'CONNECT_CODEX') {
+          try {
+            final node = await server.connectCodex(
+              serverUrl: msg['serverUrl'] as String,
+              threadId: msg['threadId'] as String,
+            );
+            bus.publish(LogEntry('Connected Codex thread ${node.detail}'));
+          } catch (error) {
+            bus.publish(LogEntry(
+              'Codex connection failed: ${error.toString()}',
+              severity: 'error',
+            ));
+          }
+        }
+        if (type == 'DISCONNECT_CODEX') {
+          await server.disconnectCodex(msg['nodeId'] as String);
+          bus.publish(LogEntry('Disconnected Codex thread'));
+        }
         if (type == 'RUN_WORKFLOW') {
           server.runWorkflow({
             'nodes': msg['nodes'] ?? [],
