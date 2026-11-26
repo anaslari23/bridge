@@ -14,6 +14,8 @@ class NodeChip extends StatelessWidget {
         return const Color(0xffad81ff);
       case NodeKind.terminal:
         return const Color(0xfff2a65a);
+      case NodeKind.file:
+        return const Color(0xffe6c76a);
       case NodeKind.desktop:
         return const Color(0xff56d19a);
     }
@@ -27,6 +29,8 @@ class NodeChip extends StatelessWidget {
         return '◈';
       case NodeKind.terminal:
         return '⌘';
+      case NodeKind.file:
+        return '▤';
       case NodeKind.desktop:
         return '◉';
     }

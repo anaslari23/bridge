@@ -22,7 +22,7 @@ void main() {
 
     await tester.tap(find.text('Expand'));
     await tester.pumpAndSettle();
-    expect(find.text('Build a brigade'), findsOneWidget);
+    expect(find.text('Workspaces'), findsOneWidget);
     expect(find.text('CANVAS / DRAFT'), findsOneWidget);
   });
 }

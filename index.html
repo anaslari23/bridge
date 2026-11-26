@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Brigade Bridge</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><span class="brand-mark">✦</span><span>Brigade Bridge</span><small>LOCAL ORCHESTRATOR</small></div>
+    <div class="top-actions"><span class="secure"><i></i> Local only</span><button class="ghost" id="stopBtn">■ Emergency stop</button><button class="primary" id="runBtn">▶ Run workflow</button></div>
+  </header>
+  <main class="app-shell">
+    <aside class="sidebar">
+      <div class="eyebrow">WORKFLOW</div><h1>Build a brigade</h1><p class="muted">Connect the tools already open on your computer. No API keys required.</p>
+      <label class="field-label" for="workflowName">Workflow name</label><input id="workflowName" value="Research → build → verify" />
+      <div class="eyebrow node-label">AVAILABLE NODES <span id="nodeCount">4</span></div>
+      <div id="nodePalette"></div>
+      <button class="add-node" id="addNodeBtn">＋ Add local node</button>
+      <div class="sidebar-foot"><span class="dot green"></span><div><strong>Bridge daemon online</strong><small>Listening on localhost</small></div></div>
+    </aside>
+    <section class="workspace">
+      <div class="workspace-head"><div><div class="eyebrow">CANVAS / DRAFT</div><h2 id="canvasTitle">Research → build → verify</h2></div><div class="legend"><span><i class="legend-dot blue"></i>Agent</span><span><i class="legend-dot purple"></i>Browser</span><span><i class="legend-dot orange"></i>Terminal</span></div></div>
+      <div class="canvas-wrap"><svg id="edges" aria-hidden="true"></svg><div id="canvas"></div><div class="canvas-help">Drag nodes to arrange · Click a node, then another to connect</div></div>
+    </section>
+    <aside class="inspector">
+      <div class="eyebrow">ACTIVITY</div><div class="activity-head"><h2>Task stream</h2><span class="live"><i></i>LIVE</span></div>
+      <div class="task-card"><div class="task-top"><span class="status-pill" id="taskStatus">READY</span><span id="taskTime">—</span></div><textarea id="taskInput">Review the current project structure and propose the next implementation step.</textarea><button class="primary full" id="dispatchBtn">Dispatch task</button></div>
+      <div class="eyebrow log-label">EVENT LOG</div><div id="log" class="log"></div>
+      <div class="permissions"><div class="eyebrow">PERMISSIONS</div><div class="permission"><span class="shield">⌾</span><div><strong>Read-only by default</strong><small>Text input requires approval</small></div><span class="toggle on"></span></div></div>
+    </aside>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>

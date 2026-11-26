@@ -1,6 +1,12 @@
-// End-to-end integration test connecting to Brigade Bridge live daemon on ws://localhost:7432
+// End-to-end integration test connecting to Brigade Bridge live daemon on ws://127.0.0.1:7432
 
-const ws = new WebSocket('ws://localhost:7432');
+const localAuthToken = process.env.BRIGADE_BRIDGE_LOCAL_TOKEN;
+if (!localAuthToken) {
+  console.error('Set BRIGADE_BRIDGE_LOCAL_TOKEN to the token shown in Brigade Bridge Settings.');
+  process.exit(2);
+}
+
+const ws = new WebSocket('ws://127.0.0.1:7432');
 
 let testStep = 0;
 let receivedNodes = false;
@@ -14,6 +20,13 @@ function log(msg) {
 
 ws.onopen = () => {
   log('Connected to Brigade Bridge Daemon over WebSocket');
+  ws.send(JSON.stringify({
+    type: 'AUTHENTICATE',
+    payload: {token: localAuthToken},
+  }));
+};
+
+function registerTestTabs() {
 
   // Step 1: Register 3 tabs as nodes
   log('Step 1: Registering agent tabs (Codex, Claude, Anti Gravity)...');
@@ -21,6 +34,7 @@ ws.onopen = () => {
     type: 'REGISTER_TAB',
     payload: {
       tabId: 101,
+      windowId: 201,
       title: 'ChatGPT Codex',
       url: 'https://chatgpt.com/codex',
       identity: 'Codex',
@@ -31,6 +45,7 @@ ws.onopen = () => {
     type: 'REGISTER_TAB',
     payload: {
       tabId: 102,
+      windowId: 202,
       title: 'Claude 3.5 Sonnet',
       url: 'https://claude.ai/chat',
       identity: 'Claude',
@@ -41,6 +56,7 @@ ws.onopen = () => {
     type: 'REGISTER_TAB',
     payload: {
       tabId: 103,
+      windowId: 203,
       title: 'Anti Gravity Studio',
       url: 'https://agy.dev/workspace',
       identity: 'Anti Gravity',
@@ -57,6 +73,17 @@ ws.onopen = () => {
 ws.onmessage = (event) => {
   const msg = JSON.parse(event.data);
   log(`Received message from daemon: type=${msg.type} payload=${JSON.stringify(msg.payload || {})}`);
+
+  if (msg.type === 'AUTHENTICATED') {
+    log('✓ Local pairing token accepted');
+    registerTestTabs();
+    return;
+  }
+
+  if (msg.type === 'PROTOCOL_ERROR') {
+    console.error(`[E2E TEST] Daemon rejected the request: ${msg.payload?.reason || 'unknown error'}`);
+    process.exit(1);
+  }
 
   if (msg.type === 'NODE_LIST') {
     const nodes = msg.payload.nodes;

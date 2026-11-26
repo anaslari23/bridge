@@ -51,6 +51,18 @@ class AuditDaoManager {
       $$AuditLogTableTableManager(_db.attachedDatabase, _db.auditLog);
 }
 
+mixin _$SettingsDaoMixin on DatabaseAccessor<BridgeDatabase> {
+  $SettingsTable get settings => attachedDatabase.settings;
+  SettingsDaoManager get managers => SettingsDaoManager(this);
+}
+
+class SettingsDaoManager {
+  final _$SettingsDaoMixin _db;
+  SettingsDaoManager(this._db);
+  $$SettingsTableTableManager get settings =>
+      $$SettingsTableTableManager(_db.attachedDatabase, _db.settings);
+}
+
 class $NodesTable extends Nodes with TableInfo<$NodesTable, Node> {
   @override
   final GeneratedDatabase attachedDatabase;
@@ -750,6 +762,26 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, Task> {
   late final GeneratedColumn<String> workflowId = GeneratedColumn<String>(
       'workflow_id', aliasedName, true,
       type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _projectIdMeta =
+      const VerificationMeta('projectId');
+  @override
+  late final GeneratedColumn<String> projectId = GeneratedColumn<String>(
+      'project_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _parentTaskIdMeta =
+      const VerificationMeta('parentTaskId');
+  @override
+  late final GeneratedColumn<String> parentTaskId = GeneratedColumn<String>(
+      'parent_task_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _handoffDepthMeta =
+      const VerificationMeta('handoffDepth');
+  @override
+  late final GeneratedColumn<int> handoffDepth = GeneratedColumn<int>(
+      'handoff_depth', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
   static const VerificationMeta _sourceNodeMeta =
       const VerificationMeta('sourceNode');
   @override
@@ -801,6 +833,9 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, Task> {
   List<GeneratedColumn> get $columns => [
         id,
         workflowId,
+        projectId,
+        parentTaskId,
+        handoffDepth,
         sourceNode,
         targetNode,
         instruction,
@@ -830,6 +865,22 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, Task> {
           _workflowIdMeta,
           workflowId.isAcceptableOrUnknown(
               data['workflow_id']!, _workflowIdMeta));
+    }
+    if (data.containsKey('project_id')) {
+      context.handle(_projectIdMeta,
+          projectId.isAcceptableOrUnknown(data['project_id']!, _projectIdMeta));
+    }
+    if (data.containsKey('parent_task_id')) {
+      context.handle(
+          _parentTaskIdMeta,
+          parentTaskId.isAcceptableOrUnknown(
+              data['parent_task_id']!, _parentTaskIdMeta));
+    }
+    if (data.containsKey('handoff_depth')) {
+      context.handle(
+          _handoffDepthMeta,
+          handoffDepth.isAcceptableOrUnknown(
+              data['handoff_depth']!, _handoffDepthMeta));
     }
     if (data.containsKey('source_node')) {
       context.handle(
@@ -892,6 +943,12 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, Task> {
           .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
       workflowId: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}workflow_id']),
+      projectId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}project_id']),
+      parentTaskId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}parent_task_id']),
+      handoffDepth: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}handoff_depth'])!,
       sourceNode: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}source_node'])!,
       targetNode: attachedDatabase.typeMapping
@@ -920,6 +977,9 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, Task> {
 class Task extends DataClass implements Insertable<Task> {
   final String id;
   final String? workflowId;
+  final String? projectId;
+  final String? parentTaskId;
+  final int handoffDepth;
   final String sourceNode;
   final String targetNode;
   final String instruction;
@@ -931,6 +991,9 @@ class Task extends DataClass implements Insertable<Task> {
   const Task(
       {required this.id,
       this.workflowId,
+      this.projectId,
+      this.parentTaskId,
+      required this.handoffDepth,
       required this.sourceNode,
       required this.targetNode,
       required this.instruction,
@@ -946,6 +1009,13 @@ class Task extends DataClass implements Insertable<Task> {
     if (!nullToAbsent || workflowId != null) {
       map['workflow_id'] = Variable<String>(workflowId);
     }
+    if (!nullToAbsent || projectId != null) {
+      map['project_id'] = Variable<String>(projectId);
+    }
+    if (!nullToAbsent || parentTaskId != null) {
+      map['parent_task_id'] = Variable<String>(parentTaskId);
+    }
+    map['handoff_depth'] = Variable<int>(handoffDepth);
     map['source_node'] = Variable<String>(sourceNode);
     map['target_node'] = Variable<String>(targetNode);
     map['instruction'] = Variable<String>(instruction);
@@ -967,6 +1037,13 @@ class Task extends DataClass implements Insertable<Task> {
       workflowId: workflowId == null && nullToAbsent
           ? const Value.absent()
           : Value(workflowId),
+      projectId: projectId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(projectId),
+      parentTaskId: parentTaskId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(parentTaskId),
+      handoffDepth: Value(handoffDepth),
       sourceNode: Value(sourceNode),
       targetNode: Value(targetNode),
       instruction: Value(instruction),
@@ -986,6 +1063,9 @@ class Task extends DataClass implements Insertable<Task> {
     return Task(
       id: serializer.fromJson<String>(json['id']),
       workflowId: serializer.fromJson<String?>(json['workflowId']),
+      projectId: serializer.fromJson<String?>(json['projectId']),
+      parentTaskId: serializer.fromJson<String?>(json['parentTaskId']),
+      handoffDepth: serializer.fromJson<int>(json['handoffDepth']),
       sourceNode: serializer.fromJson<String>(json['sourceNode']),
       targetNode: serializer.fromJson<String>(json['targetNode']),
       instruction: serializer.fromJson<String>(json['instruction']),
@@ -1002,6 +1082,9 @@ class Task extends DataClass implements Insertable<Task> {
     return <String, dynamic>{
       'id': serializer.toJson<String>(id),
       'workflowId': serializer.toJson<String?>(workflowId),
+      'projectId': serializer.toJson<String?>(projectId),
+      'parentTaskId': serializer.toJson<String?>(parentTaskId),
+      'handoffDepth': serializer.toJson<int>(handoffDepth),
       'sourceNode': serializer.toJson<String>(sourceNode),
       'targetNode': serializer.toJson<String>(targetNode),
       'instruction': serializer.toJson<String>(instruction),
@@ -1016,6 +1099,9 @@ class Task extends DataClass implements Insertable<Task> {
   Task copyWith(
           {String? id,
           Value<String?> workflowId = const Value.absent(),
+          Value<String?> projectId = const Value.absent(),
+          Value<String?> parentTaskId = const Value.absent(),
+          int? handoffDepth,
           String? sourceNode,
           String? targetNode,
           String? instruction,
@@ -1027,6 +1113,10 @@ class Task extends DataClass implements Insertable<Task> {
       Task(
         id: id ?? this.id,
         workflowId: workflowId.present ? workflowId.value : this.workflowId,
+        projectId: projectId.present ? projectId.value : this.projectId,
+        parentTaskId:
+            parentTaskId.present ? parentTaskId.value : this.parentTaskId,
+        handoffDepth: handoffDepth ?? this.handoffDepth,
         sourceNode: sourceNode ?? this.sourceNode,
         targetNode: targetNode ?? this.targetNode,
         instruction: instruction ?? this.instruction,
@@ -1041,6 +1131,13 @@ class Task extends DataClass implements Insertable<Task> {
       id: data.id.present ? data.id.value : this.id,
       workflowId:
           data.workflowId.present ? data.workflowId.value : this.workflowId,
+      projectId: data.projectId.present ? data.projectId.value : this.projectId,
+      parentTaskId: data.parentTaskId.present
+          ? data.parentTaskId.value
+          : this.parentTaskId,
+      handoffDepth: data.handoffDepth.present
+          ? data.handoffDepth.value
+          : this.handoffDepth,
       sourceNode:
           data.sourceNode.present ? data.sourceNode.value : this.sourceNode,
       targetNode:
@@ -1060,6 +1157,9 @@ class Task extends DataClass implements Insertable<Task> {
     return (StringBuffer('Task(')
           ..write('id: $id, ')
           ..write('workflowId: $workflowId, ')
+          ..write('projectId: $projectId, ')
+          ..write('parentTaskId: $parentTaskId, ')
+          ..write('handoffDepth: $handoffDepth, ')
           ..write('sourceNode: $sourceNode, ')
           ..write('targetNode: $targetNode, ')
           ..write('instruction: $instruction, ')
@@ -1073,14 +1173,29 @@ class Task extends DataClass implements Insertable<Task> {
   }
 
   @override
-  int get hashCode => Object.hash(id, workflowId, sourceNode, targetNode,
-      instruction, status, result, error, createdAt, updatedAt);
+  int get hashCode => Object.hash(
+      id,
+      workflowId,
+      projectId,
+      parentTaskId,
+      handoffDepth,
+      sourceNode,
+      targetNode,
+      instruction,
+      status,
+      result,
+      error,
+      createdAt,
+      updatedAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is Task &&
           other.id == this.id &&
           other.workflowId == this.workflowId &&
+          other.projectId == this.projectId &&
+          other.parentTaskId == this.parentTaskId &&
+          other.handoffDepth == this.handoffDepth &&
           other.sourceNode == this.sourceNode &&
           other.targetNode == this.targetNode &&
           other.instruction == this.instruction &&
@@ -1094,6 +1209,9 @@ class Task extends DataClass implements Insertable<Task> {
 class TasksCompanion extends UpdateCompanion<Task> {
   final Value<String> id;
   final Value<String?> workflowId;
+  final Value<String?> projectId;
+  final Value<String?> parentTaskId;
+  final Value<int> handoffDepth;
   final Value<String> sourceNode;
   final Value<String> targetNode;
   final Value<String> instruction;
@@ -1106,6 +1224,9 @@ class TasksCompanion extends UpdateCompanion<Task> {
   const TasksCompanion({
     this.id = const Value.absent(),
     this.workflowId = const Value.absent(),
+    this.projectId = const Value.absent(),
+    this.parentTaskId = const Value.absent(),
+    this.handoffDepth = const Value.absent(),
     this.sourceNode = const Value.absent(),
     this.targetNode = const Value.absent(),
     this.instruction = const Value.absent(),
@@ -1119,6 +1240,9 @@ class TasksCompanion extends UpdateCompanion<Task> {
   TasksCompanion.insert({
     required String id,
     this.workflowId = const Value.absent(),
+    this.projectId = const Value.absent(),
+    this.parentTaskId = const Value.absent(),
+    this.handoffDepth = const Value.absent(),
     required String sourceNode,
     required String targetNode,
     required String instruction,
@@ -1137,6 +1261,9 @@ class TasksCompanion extends UpdateCompanion<Task> {
   static Insertable<Task> custom({
     Expression<String>? id,
     Expression<String>? workflowId,
+    Expression<String>? projectId,
+    Expression<String>? parentTaskId,
+    Expression<int>? handoffDepth,
     Expression<String>? sourceNode,
     Expression<String>? targetNode,
     Expression<String>? instruction,
@@ -1150,6 +1277,9 @@ class TasksCompanion extends UpdateCompanion<Task> {
     return RawValuesInsertable({
       if (id != null) 'id': id,
       if (workflowId != null) 'workflow_id': workflowId,
+      if (projectId != null) 'project_id': projectId,
+      if (parentTaskId != null) 'parent_task_id': parentTaskId,
+      if (handoffDepth != null) 'handoff_depth': handoffDepth,
       if (sourceNode != null) 'source_node': sourceNode,
       if (targetNode != null) 'target_node': targetNode,
       if (instruction != null) 'instruction': instruction,
@@ -1165,6 +1295,9 @@ class TasksCompanion extends UpdateCompanion<Task> {
   TasksCompanion copyWith(
       {Value<String>? id,
       Value<String?>? workflowId,
+      Value<String?>? projectId,
+      Value<String?>? parentTaskId,
+      Value<int>? handoffDepth,
       Value<String>? sourceNode,
       Value<String>? targetNode,
       Value<String>? instruction,
@@ -1177,6 +1310,9 @@ class TasksCompanion extends UpdateCompanion<Task> {
     return TasksCompanion(
       id: id ?? this.id,
       workflowId: workflowId ?? this.workflowId,
+      projectId: projectId ?? this.projectId,
+      parentTaskId: parentTaskId ?? this.parentTaskId,
+      handoffDepth: handoffDepth ?? this.handoffDepth,
       sourceNode: sourceNode ?? this.sourceNode,
       targetNode: targetNode ?? this.targetNode,
       instruction: instruction ?? this.instruction,
@@ -1197,6 +1333,15 @@ class TasksCompanion extends UpdateCompanion<Task> {
     }
     if (workflowId.present) {
       map['workflow_id'] = Variable<String>(workflowId.value);
+    }
+    if (projectId.present) {
+      map['project_id'] = Variable<String>(projectId.value);
+    }
+    if (parentTaskId.present) {
+      map['parent_task_id'] = Variable<String>(parentTaskId.value);
+    }
+    if (handoffDepth.present) {
+      map['handoff_depth'] = Variable<int>(handoffDepth.value);
     }
     if (sourceNode.present) {
       map['source_node'] = Variable<String>(sourceNode.value);
@@ -1233,6 +1378,9 @@ class TasksCompanion extends UpdateCompanion<Task> {
     return (StringBuffer('TasksCompanion(')
           ..write('id: $id, ')
           ..write('workflowId: $workflowId, ')
+          ..write('projectId: $projectId, ')
+          ..write('parentTaskId: $parentTaskId, ')
+          ..write('handoffDepth: $handoffDepth, ')
           ..write('sourceNode: $sourceNode, ')
           ..write('targetNode: $targetNode, ')
           ..write('instruction: $instruction, ')
@@ -1582,6 +1730,697 @@ class AuditLogCompanion extends UpdateCompanion<AuditLogData> {
   }
 }
 
+class $SettingsTable extends Settings with TableInfo<$SettingsTable, Setting> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SettingsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _keyMeta = const VerificationMeta('key');
+  @override
+  late final GeneratedColumn<String> key = GeneratedColumn<String>(
+      'key', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _valueMeta = const VerificationMeta('value');
+  @override
+  late final GeneratedColumn<String> value = GeneratedColumn<String>(
+      'value', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  @override
+  List<GeneratedColumn> get $columns => [key, value];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'settings';
+  @override
+  VerificationContext validateIntegrity(Insertable<Setting> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('key')) {
+      context.handle(
+          _keyMeta, key.isAcceptableOrUnknown(data['key']!, _keyMeta));
+    } else if (isInserting) {
+      context.missing(_keyMeta);
+    }
+    if (data.containsKey('value')) {
+      context.handle(
+          _valueMeta, value.isAcceptableOrUnknown(data['value']!, _valueMeta));
+    } else if (isInserting) {
+      context.missing(_valueMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {key};
+  @override
+  Setting map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return Setting(
+      key: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}key'])!,
+      value: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}value'])!,
+    );
+  }
+
+  @override
+  $SettingsTable createAlias(String alias) {
+    return $SettingsTable(attachedDatabase, alias);
+  }
+}
+
+class Setting extends DataClass implements Insertable<Setting> {
+  final String key;
+  final String value;
+  const Setting({required this.key, required this.value});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['key'] = Variable<String>(key);
+    map['value'] = Variable<String>(value);
+    return map;
+  }
+
+  SettingsCompanion toCompanion(bool nullToAbsent) {
+    return SettingsCompanion(
+      key: Value(key),
+      value: Value(value),
+    );
+  }
+
+  factory Setting.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return Setting(
+      key: serializer.fromJson<String>(json['key']),
+      value: serializer.fromJson<String>(json['value']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'key': serializer.toJson<String>(key),
+      'value': serializer.toJson<String>(value),
+    };
+  }
+
+  Setting copyWith({String? key, String? value}) => Setting(
+        key: key ?? this.key,
+        value: value ?? this.value,
+      );
+  Setting copyWithCompanion(SettingsCompanion data) {
+    return Setting(
+      key: data.key.present ? data.key.value : this.key,
+      value: data.value.present ? data.value.value : this.value,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('Setting(')
+          ..write('key: $key, ')
+          ..write('value: $value')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(key, value);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is Setting && other.key == this.key && other.value == this.value);
+}
+
+class SettingsCompanion extends UpdateCompanion<Setting> {
+  final Value<String> key;
+  final Value<String> value;
+  final Value<int> rowid;
+  const SettingsCompanion({
+    this.key = const Value.absent(),
+    this.value = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  SettingsCompanion.insert({
+    required String key,
+    required String value,
+    this.rowid = const Value.absent(),
+  })  : key = Value(key),
+        value = Value(value);
+  static Insertable<Setting> custom({
+    Expression<String>? key,
+    Expression<String>? value,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (key != null) 'key': key,
+      if (value != null) 'value': value,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  SettingsCompanion copyWith(
+      {Value<String>? key, Value<String>? value, Value<int>? rowid}) {
+    return SettingsCompanion(
+      key: key ?? this.key,
+      value: value ?? this.value,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (key.present) {
+      map['key'] = Variable<String>(key.value);
+    }
+    if (value.present) {
+      map['value'] = Variable<String>(value.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SettingsCompanion(')
+          ..write('key: $key, ')
+          ..write('value: $value, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $ProjectRecordsTable extends ProjectRecords
+    with TableInfo<$ProjectRecordsTable, ProjectRecord> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ProjectRecordsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+      'id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+      'name', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<int> createdAt = GeneratedColumn<int>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  @override
+  List<GeneratedColumn> get $columns => [id, name, createdAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'project_records';
+  @override
+  VerificationContext validateIntegrity(Insertable<ProjectRecord> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+          _nameMeta, name.isAcceptableOrUnknown(data['name']!, _nameMeta));
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  ProjectRecord map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ProjectRecord(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      name: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}name'])!,
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}created_at'])!,
+    );
+  }
+
+  @override
+  $ProjectRecordsTable createAlias(String alias) {
+    return $ProjectRecordsTable(attachedDatabase, alias);
+  }
+}
+
+class ProjectRecord extends DataClass implements Insertable<ProjectRecord> {
+  final String id;
+  final String name;
+  final int createdAt;
+  const ProjectRecord(
+      {required this.id, required this.name, required this.createdAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['name'] = Variable<String>(name);
+    map['created_at'] = Variable<int>(createdAt);
+    return map;
+  }
+
+  ProjectRecordsCompanion toCompanion(bool nullToAbsent) {
+    return ProjectRecordsCompanion(
+      id: Value(id),
+      name: Value(name),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory ProjectRecord.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ProjectRecord(
+      id: serializer.fromJson<String>(json['id']),
+      name: serializer.fromJson<String>(json['name']),
+      createdAt: serializer.fromJson<int>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'name': serializer.toJson<String>(name),
+      'createdAt': serializer.toJson<int>(createdAt),
+    };
+  }
+
+  ProjectRecord copyWith({String? id, String? name, int? createdAt}) =>
+      ProjectRecord(
+        id: id ?? this.id,
+        name: name ?? this.name,
+        createdAt: createdAt ?? this.createdAt,
+      );
+  ProjectRecord copyWithCompanion(ProjectRecordsCompanion data) {
+    return ProjectRecord(
+      id: data.id.present ? data.id.value : this.id,
+      name: data.name.present ? data.name.value : this.name,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ProjectRecord(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, name, createdAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ProjectRecord &&
+          other.id == this.id &&
+          other.name == this.name &&
+          other.createdAt == this.createdAt);
+}
+
+class ProjectRecordsCompanion extends UpdateCompanion<ProjectRecord> {
+  final Value<String> id;
+  final Value<String> name;
+  final Value<int> createdAt;
+  final Value<int> rowid;
+  const ProjectRecordsCompanion({
+    this.id = const Value.absent(),
+    this.name = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  ProjectRecordsCompanion.insert({
+    required String id,
+    required String name,
+    required int createdAt,
+    this.rowid = const Value.absent(),
+  })  : id = Value(id),
+        name = Value(name),
+        createdAt = Value(createdAt);
+  static Insertable<ProjectRecord> custom({
+    Expression<String>? id,
+    Expression<String>? name,
+    Expression<int>? createdAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (name != null) 'name': name,
+      if (createdAt != null) 'created_at': createdAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  ProjectRecordsCompanion copyWith(
+      {Value<String>? id,
+      Value<String>? name,
+      Value<int>? createdAt,
+      Value<int>? rowid}) {
+    return ProjectRecordsCompanion(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      createdAt: createdAt ?? this.createdAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<int>(createdAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ProjectRecordsCompanion(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $ApprovalGrantsTable extends ApprovalGrants
+    with TableInfo<$ApprovalGrantsTable, ApprovalGrant> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ApprovalGrantsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _projectIdMeta =
+      const VerificationMeta('projectId');
+  @override
+  late final GeneratedColumn<String> projectId = GeneratedColumn<String>(
+      'project_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _nodeIdMeta = const VerificationMeta('nodeId');
+  @override
+  late final GeneratedColumn<String> nodeId = GeneratedColumn<String>(
+      'node_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _capabilityMeta =
+      const VerificationMeta('capability');
+  @override
+  late final GeneratedColumn<String> capability = GeneratedColumn<String>(
+      'capability', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _grantedAtMeta =
+      const VerificationMeta('grantedAt');
+  @override
+  late final GeneratedColumn<int> grantedAt = GeneratedColumn<int>(
+      'granted_at', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  @override
+  List<GeneratedColumn> get $columns =>
+      [projectId, nodeId, capability, grantedAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'approval_grants';
+  @override
+  VerificationContext validateIntegrity(Insertable<ApprovalGrant> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('project_id')) {
+      context.handle(_projectIdMeta,
+          projectId.isAcceptableOrUnknown(data['project_id']!, _projectIdMeta));
+    } else if (isInserting) {
+      context.missing(_projectIdMeta);
+    }
+    if (data.containsKey('node_id')) {
+      context.handle(_nodeIdMeta,
+          nodeId.isAcceptableOrUnknown(data['node_id']!, _nodeIdMeta));
+    } else if (isInserting) {
+      context.missing(_nodeIdMeta);
+    }
+    if (data.containsKey('capability')) {
+      context.handle(
+          _capabilityMeta,
+          capability.isAcceptableOrUnknown(
+              data['capability']!, _capabilityMeta));
+    } else if (isInserting) {
+      context.missing(_capabilityMeta);
+    }
+    if (data.containsKey('granted_at')) {
+      context.handle(_grantedAtMeta,
+          grantedAt.isAcceptableOrUnknown(data['granted_at']!, _grantedAtMeta));
+    } else if (isInserting) {
+      context.missing(_grantedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {projectId, nodeId, capability};
+  @override
+  ApprovalGrant map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ApprovalGrant(
+      projectId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}project_id'])!,
+      nodeId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}node_id'])!,
+      capability: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}capability'])!,
+      grantedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}granted_at'])!,
+    );
+  }
+
+  @override
+  $ApprovalGrantsTable createAlias(String alias) {
+    return $ApprovalGrantsTable(attachedDatabase, alias);
+  }
+}
+
+class ApprovalGrant extends DataClass implements Insertable<ApprovalGrant> {
+  final String projectId;
+  final String nodeId;
+  final String capability;
+  final int grantedAt;
+  const ApprovalGrant(
+      {required this.projectId,
+      required this.nodeId,
+      required this.capability,
+      required this.grantedAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['project_id'] = Variable<String>(projectId);
+    map['node_id'] = Variable<String>(nodeId);
+    map['capability'] = Variable<String>(capability);
+    map['granted_at'] = Variable<int>(grantedAt);
+    return map;
+  }
+
+  ApprovalGrantsCompanion toCompanion(bool nullToAbsent) {
+    return ApprovalGrantsCompanion(
+      projectId: Value(projectId),
+      nodeId: Value(nodeId),
+      capability: Value(capability),
+      grantedAt: Value(grantedAt),
+    );
+  }
+
+  factory ApprovalGrant.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ApprovalGrant(
+      projectId: serializer.fromJson<String>(json['projectId']),
+      nodeId: serializer.fromJson<String>(json['nodeId']),
+      capability: serializer.fromJson<String>(json['capability']),
+      grantedAt: serializer.fromJson<int>(json['grantedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'projectId': serializer.toJson<String>(projectId),
+      'nodeId': serializer.toJson<String>(nodeId),
+      'capability': serializer.toJson<String>(capability),
+      'grantedAt': serializer.toJson<int>(grantedAt),
+    };
+  }
+
+  ApprovalGrant copyWith(
+          {String? projectId,
+          String? nodeId,
+          String? capability,
+          int? grantedAt}) =>
+      ApprovalGrant(
+        projectId: projectId ?? this.projectId,
+        nodeId: nodeId ?? this.nodeId,
+        capability: capability ?? this.capability,
+        grantedAt: grantedAt ?? this.grantedAt,
+      );
+  ApprovalGrant copyWithCompanion(ApprovalGrantsCompanion data) {
+    return ApprovalGrant(
+      projectId: data.projectId.present ? data.projectId.value : this.projectId,
+      nodeId: data.nodeId.present ? data.nodeId.value : this.nodeId,
+      capability:
+          data.capability.present ? data.capability.value : this.capability,
+      grantedAt: data.grantedAt.present ? data.grantedAt.value : this.grantedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ApprovalGrant(')
+          ..write('projectId: $projectId, ')
+          ..write('nodeId: $nodeId, ')
+          ..write('capability: $capability, ')
+          ..write('grantedAt: $grantedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(projectId, nodeId, capability, grantedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ApprovalGrant &&
+          other.projectId == this.projectId &&
+          other.nodeId == this.nodeId &&
+          other.capability == this.capability &&
+          other.grantedAt == this.grantedAt);
+}
+
+class ApprovalGrantsCompanion extends UpdateCompanion<ApprovalGrant> {
+  final Value<String> projectId;
+  final Value<String> nodeId;
+  final Value<String> capability;
+  final Value<int> grantedAt;
+  final Value<int> rowid;
+  const ApprovalGrantsCompanion({
+    this.projectId = const Value.absent(),
+    this.nodeId = const Value.absent(),
+    this.capability = const Value.absent(),
+    this.grantedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  ApprovalGrantsCompanion.insert({
+    required String projectId,
+    required String nodeId,
+    required String capability,
+    required int grantedAt,
+    this.rowid = const Value.absent(),
+  })  : projectId = Value(projectId),
+        nodeId = Value(nodeId),
+        capability = Value(capability),
+        grantedAt = Value(grantedAt);
+  static Insertable<ApprovalGrant> custom({
+    Expression<String>? projectId,
+    Expression<String>? nodeId,
+    Expression<String>? capability,
+    Expression<int>? grantedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (projectId != null) 'project_id': projectId,
+      if (nodeId != null) 'node_id': nodeId,
+      if (capability != null) 'capability': capability,
+      if (grantedAt != null) 'granted_at': grantedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  ApprovalGrantsCompanion copyWith(
+      {Value<String>? projectId,
+      Value<String>? nodeId,
+      Value<String>? capability,
+      Value<int>? grantedAt,
+      Value<int>? rowid}) {
+    return ApprovalGrantsCompanion(
+      projectId: projectId ?? this.projectId,
+      nodeId: nodeId ?? this.nodeId,
+      capability: capability ?? this.capability,
+      grantedAt: grantedAt ?? this.grantedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (projectId.present) {
+      map['project_id'] = Variable<String>(projectId.value);
+    }
+    if (nodeId.present) {
+      map['node_id'] = Variable<String>(nodeId.value);
+    }
+    if (capability.present) {
+      map['capability'] = Variable<String>(capability.value);
+    }
+    if (grantedAt.present) {
+      map['granted_at'] = Variable<int>(grantedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ApprovalGrantsCompanion(')
+          ..write('projectId: $projectId, ')
+          ..write('nodeId: $nodeId, ')
+          ..write('capability: $capability, ')
+          ..write('grantedAt: $grantedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$BridgeDatabase extends GeneratedDatabase {
   _$BridgeDatabase(QueryExecutor e) : super(e);
   $BridgeDatabaseManager get managers => $BridgeDatabaseManager(this);
@@ -1589,16 +2428,27 @@ abstract class _$BridgeDatabase extends GeneratedDatabase {
   late final $WorkflowsTable workflows = $WorkflowsTable(this);
   late final $TasksTable tasks = $TasksTable(this);
   late final $AuditLogTable auditLog = $AuditLogTable(this);
+  late final $SettingsTable settings = $SettingsTable(this);
+  late final $ProjectRecordsTable projectRecords = $ProjectRecordsTable(this);
+  late final $ApprovalGrantsTable approvalGrants = $ApprovalGrantsTable(this);
   late final NodesDao nodesDao = NodesDao(this as BridgeDatabase);
   late final WorkflowsDao workflowsDao = WorkflowsDao(this as BridgeDatabase);
   late final TasksDao tasksDao = TasksDao(this as BridgeDatabase);
   late final AuditDao auditDao = AuditDao(this as BridgeDatabase);
+  late final SettingsDao settingsDao = SettingsDao(this as BridgeDatabase);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
   @override
-  List<DatabaseSchemaEntity> get allSchemaEntities =>
-      [nodes, workflows, tasks, auditLog];
+  List<DatabaseSchemaEntity> get allSchemaEntities => [
+        nodes,
+        workflows,
+        tasks,
+        auditLog,
+        settings,
+        projectRecords,
+        approvalGrants
+      ];
 }
 
 typedef $$NodesTableCreateCompanionBuilder = NodesCompanion Function({
@@ -1974,6 +2824,9 @@ typedef $$WorkflowsTableProcessedTableManager = ProcessedTableManager<
 typedef $$TasksTableCreateCompanionBuilder = TasksCompanion Function({
   required String id,
   Value<String?> workflowId,
+  Value<String?> projectId,
+  Value<String?> parentTaskId,
+  Value<int> handoffDepth,
   required String sourceNode,
   required String targetNode,
   required String instruction,
@@ -1987,6 +2840,9 @@ typedef $$TasksTableCreateCompanionBuilder = TasksCompanion Function({
 typedef $$TasksTableUpdateCompanionBuilder = TasksCompanion Function({
   Value<String> id,
   Value<String?> workflowId,
+  Value<String?> projectId,
+  Value<String?> parentTaskId,
+  Value<int> handoffDepth,
   Value<String> sourceNode,
   Value<String> targetNode,
   Value<String> instruction,
@@ -2012,6 +2868,15 @@ class $$TasksTableFilterComposer
 
   ColumnFilters<String> get workflowId => $composableBuilder(
       column: $table.workflowId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get projectId => $composableBuilder(
+      column: $table.projectId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get parentTaskId => $composableBuilder(
+      column: $table.parentTaskId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get handoffDepth => $composableBuilder(
+      column: $table.handoffDepth, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get sourceNode => $composableBuilder(
       column: $table.sourceNode, builder: (column) => ColumnFilters(column));
@@ -2053,6 +2918,17 @@ class $$TasksTableOrderingComposer
   ColumnOrderings<String> get workflowId => $composableBuilder(
       column: $table.workflowId, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get projectId => $composableBuilder(
+      column: $table.projectId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get parentTaskId => $composableBuilder(
+      column: $table.parentTaskId,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get handoffDepth => $composableBuilder(
+      column: $table.handoffDepth,
+      builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<String> get sourceNode => $composableBuilder(
       column: $table.sourceNode, builder: (column) => ColumnOrderings(column));
 
@@ -2092,6 +2968,15 @@ class $$TasksTableAnnotationComposer
 
   GeneratedColumn<String> get workflowId => $composableBuilder(
       column: $table.workflowId, builder: (column) => column);
+
+  GeneratedColumn<String> get projectId =>
+      $composableBuilder(column: $table.projectId, builder: (column) => column);
+
+  GeneratedColumn<String> get parentTaskId => $composableBuilder(
+      column: $table.parentTaskId, builder: (column) => column);
+
+  GeneratedColumn<int> get handoffDepth => $composableBuilder(
+      column: $table.handoffDepth, builder: (column) => column);
 
   GeneratedColumn<String> get sourceNode => $composableBuilder(
       column: $table.sourceNode, builder: (column) => column);
@@ -2143,6 +3028,9 @@ class $$TasksTableTableManager extends RootTableManager<
           updateCompanionCallback: ({
             Value<String> id = const Value.absent(),
             Value<String?> workflowId = const Value.absent(),
+            Value<String?> projectId = const Value.absent(),
+            Value<String?> parentTaskId = const Value.absent(),
+            Value<int> handoffDepth = const Value.absent(),
             Value<String> sourceNode = const Value.absent(),
             Value<String> targetNode = const Value.absent(),
             Value<String> instruction = const Value.absent(),
@@ -2156,6 +3044,9 @@ class $$TasksTableTableManager extends RootTableManager<
               TasksCompanion(
             id: id,
             workflowId: workflowId,
+            projectId: projectId,
+            parentTaskId: parentTaskId,
+            handoffDepth: handoffDepth,
             sourceNode: sourceNode,
             targetNode: targetNode,
             instruction: instruction,
@@ -2169,6 +3060,9 @@ class $$TasksTableTableManager extends RootTableManager<
           createCompanionCallback: ({
             required String id,
             Value<String?> workflowId = const Value.absent(),
+            Value<String?> projectId = const Value.absent(),
+            Value<String?> parentTaskId = const Value.absent(),
+            Value<int> handoffDepth = const Value.absent(),
             required String sourceNode,
             required String targetNode,
             required String instruction,
@@ -2182,6 +3076,9 @@ class $$TasksTableTableManager extends RootTableManager<
               TasksCompanion.insert(
             id: id,
             workflowId: workflowId,
+            projectId: projectId,
+            parentTaskId: parentTaskId,
+            handoffDepth: handoffDepth,
             sourceNode: sourceNode,
             targetNode: targetNode,
             instruction: instruction,
@@ -2399,6 +3296,441 @@ typedef $$AuditLogTableProcessedTableManager = ProcessedTableManager<
     ),
     AuditLogData,
     PrefetchHooks Function()>;
+typedef $$SettingsTableCreateCompanionBuilder = SettingsCompanion Function({
+  required String key,
+  required String value,
+  Value<int> rowid,
+});
+typedef $$SettingsTableUpdateCompanionBuilder = SettingsCompanion Function({
+  Value<String> key,
+  Value<String> value,
+  Value<int> rowid,
+});
+
+class $$SettingsTableFilterComposer
+    extends Composer<_$BridgeDatabase, $SettingsTable> {
+  $$SettingsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get key => $composableBuilder(
+      column: $table.key, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get value => $composableBuilder(
+      column: $table.value, builder: (column) => ColumnFilters(column));
+}
+
+class $$SettingsTableOrderingComposer
+    extends Composer<_$BridgeDatabase, $SettingsTable> {
+  $$SettingsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get key => $composableBuilder(
+      column: $table.key, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get value => $composableBuilder(
+      column: $table.value, builder: (column) => ColumnOrderings(column));
+}
+
+class $$SettingsTableAnnotationComposer
+    extends Composer<_$BridgeDatabase, $SettingsTable> {
+  $$SettingsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get key =>
+      $composableBuilder(column: $table.key, builder: (column) => column);
+
+  GeneratedColumn<String> get value =>
+      $composableBuilder(column: $table.value, builder: (column) => column);
+}
+
+class $$SettingsTableTableManager extends RootTableManager<
+    _$BridgeDatabase,
+    $SettingsTable,
+    Setting,
+    $$SettingsTableFilterComposer,
+    $$SettingsTableOrderingComposer,
+    $$SettingsTableAnnotationComposer,
+    $$SettingsTableCreateCompanionBuilder,
+    $$SettingsTableUpdateCompanionBuilder,
+    (Setting, BaseReferences<_$BridgeDatabase, $SettingsTable, Setting>),
+    Setting,
+    PrefetchHooks Function()> {
+  $$SettingsTableTableManager(_$BridgeDatabase db, $SettingsTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SettingsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$SettingsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$SettingsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> key = const Value.absent(),
+            Value<String> value = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              SettingsCompanion(
+            key: key,
+            value: value,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String key,
+            required String value,
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              SettingsCompanion.insert(
+            key: key,
+            value: value,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (
+                    e.readTable<$SettingsTable, Setting>(table),
+                    BaseReferences<_$BridgeDatabase, $SettingsTable, Setting>(
+                        db, table, e)
+                  ))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$SettingsTableProcessedTableManager = ProcessedTableManager<
+    _$BridgeDatabase,
+    $SettingsTable,
+    Setting,
+    $$SettingsTableFilterComposer,
+    $$SettingsTableOrderingComposer,
+    $$SettingsTableAnnotationComposer,
+    $$SettingsTableCreateCompanionBuilder,
+    $$SettingsTableUpdateCompanionBuilder,
+    (Setting, BaseReferences<_$BridgeDatabase, $SettingsTable, Setting>),
+    Setting,
+    PrefetchHooks Function()>;
+typedef $$ProjectRecordsTableCreateCompanionBuilder = ProjectRecordsCompanion
+    Function({
+  required String id,
+  required String name,
+  required int createdAt,
+  Value<int> rowid,
+});
+typedef $$ProjectRecordsTableUpdateCompanionBuilder = ProjectRecordsCompanion
+    Function({
+  Value<String> id,
+  Value<String> name,
+  Value<int> createdAt,
+  Value<int> rowid,
+});
+
+class $$ProjectRecordsTableFilterComposer
+    extends Composer<_$BridgeDatabase, $ProjectRecordsTable> {
+  $$ProjectRecordsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get name => $composableBuilder(
+      column: $table.name, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$ProjectRecordsTableOrderingComposer
+    extends Composer<_$BridgeDatabase, $ProjectRecordsTable> {
+  $$ProjectRecordsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get name => $composableBuilder(
+      column: $table.name, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$ProjectRecordsTableAnnotationComposer
+    extends Composer<_$BridgeDatabase, $ProjectRecordsTable> {
+  $$ProjectRecordsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<int> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+}
+
+class $$ProjectRecordsTableTableManager extends RootTableManager<
+    _$BridgeDatabase,
+    $ProjectRecordsTable,
+    ProjectRecord,
+    $$ProjectRecordsTableFilterComposer,
+    $$ProjectRecordsTableOrderingComposer,
+    $$ProjectRecordsTableAnnotationComposer,
+    $$ProjectRecordsTableCreateCompanionBuilder,
+    $$ProjectRecordsTableUpdateCompanionBuilder,
+    (
+      ProjectRecord,
+      BaseReferences<_$BridgeDatabase, $ProjectRecordsTable, ProjectRecord>
+    ),
+    ProjectRecord,
+    PrefetchHooks Function()> {
+  $$ProjectRecordsTableTableManager(
+      _$BridgeDatabase db, $ProjectRecordsTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ProjectRecordsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ProjectRecordsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$ProjectRecordsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> id = const Value.absent(),
+            Value<String> name = const Value.absent(),
+            Value<int> createdAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              ProjectRecordsCompanion(
+            id: id,
+            name: name,
+            createdAt: createdAt,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String id,
+            required String name,
+            required int createdAt,
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              ProjectRecordsCompanion.insert(
+            id: id,
+            name: name,
+            createdAt: createdAt,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (
+                    e.readTable<$ProjectRecordsTable, ProjectRecord>(table),
+                    BaseReferences<_$BridgeDatabase, $ProjectRecordsTable,
+                        ProjectRecord>(db, table, e)
+                  ))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$ProjectRecordsTableProcessedTableManager = ProcessedTableManager<
+    _$BridgeDatabase,
+    $ProjectRecordsTable,
+    ProjectRecord,
+    $$ProjectRecordsTableFilterComposer,
+    $$ProjectRecordsTableOrderingComposer,
+    $$ProjectRecordsTableAnnotationComposer,
+    $$ProjectRecordsTableCreateCompanionBuilder,
+    $$ProjectRecordsTableUpdateCompanionBuilder,
+    (
+      ProjectRecord,
+      BaseReferences<_$BridgeDatabase, $ProjectRecordsTable, ProjectRecord>
+    ),
+    ProjectRecord,
+    PrefetchHooks Function()>;
+typedef $$ApprovalGrantsTableCreateCompanionBuilder = ApprovalGrantsCompanion
+    Function({
+  required String projectId,
+  required String nodeId,
+  required String capability,
+  required int grantedAt,
+  Value<int> rowid,
+});
+typedef $$ApprovalGrantsTableUpdateCompanionBuilder = ApprovalGrantsCompanion
+    Function({
+  Value<String> projectId,
+  Value<String> nodeId,
+  Value<String> capability,
+  Value<int> grantedAt,
+  Value<int> rowid,
+});
+
+class $$ApprovalGrantsTableFilterComposer
+    extends Composer<_$BridgeDatabase, $ApprovalGrantsTable> {
+  $$ApprovalGrantsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get projectId => $composableBuilder(
+      column: $table.projectId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get nodeId => $composableBuilder(
+      column: $table.nodeId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get capability => $composableBuilder(
+      column: $table.capability, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get grantedAt => $composableBuilder(
+      column: $table.grantedAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$ApprovalGrantsTableOrderingComposer
+    extends Composer<_$BridgeDatabase, $ApprovalGrantsTable> {
+  $$ApprovalGrantsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get projectId => $composableBuilder(
+      column: $table.projectId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get nodeId => $composableBuilder(
+      column: $table.nodeId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get capability => $composableBuilder(
+      column: $table.capability, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get grantedAt => $composableBuilder(
+      column: $table.grantedAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$ApprovalGrantsTableAnnotationComposer
+    extends Composer<_$BridgeDatabase, $ApprovalGrantsTable> {
+  $$ApprovalGrantsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get projectId =>
+      $composableBuilder(column: $table.projectId, builder: (column) => column);
+
+  GeneratedColumn<String> get nodeId =>
+      $composableBuilder(column: $table.nodeId, builder: (column) => column);
+
+  GeneratedColumn<String> get capability => $composableBuilder(
+      column: $table.capability, builder: (column) => column);
+
+  GeneratedColumn<int> get grantedAt =>
+      $composableBuilder(column: $table.grantedAt, builder: (column) => column);
+}
+
+class $$ApprovalGrantsTableTableManager extends RootTableManager<
+    _$BridgeDatabase,
+    $ApprovalGrantsTable,
+    ApprovalGrant,
+    $$ApprovalGrantsTableFilterComposer,
+    $$ApprovalGrantsTableOrderingComposer,
+    $$ApprovalGrantsTableAnnotationComposer,
+    $$ApprovalGrantsTableCreateCompanionBuilder,
+    $$ApprovalGrantsTableUpdateCompanionBuilder,
+    (
+      ApprovalGrant,
+      BaseReferences<_$BridgeDatabase, $ApprovalGrantsTable, ApprovalGrant>
+    ),
+    ApprovalGrant,
+    PrefetchHooks Function()> {
+  $$ApprovalGrantsTableTableManager(
+      _$BridgeDatabase db, $ApprovalGrantsTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ApprovalGrantsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ApprovalGrantsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$ApprovalGrantsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> projectId = const Value.absent(),
+            Value<String> nodeId = const Value.absent(),
+            Value<String> capability = const Value.absent(),
+            Value<int> grantedAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              ApprovalGrantsCompanion(
+            projectId: projectId,
+            nodeId: nodeId,
+            capability: capability,
+            grantedAt: grantedAt,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String projectId,
+            required String nodeId,
+            required String capability,
+            required int grantedAt,
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              ApprovalGrantsCompanion.insert(
+            projectId: projectId,
+            nodeId: nodeId,
+            capability: capability,
+            grantedAt: grantedAt,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (
+                    e.readTable<$ApprovalGrantsTable, ApprovalGrant>(table),
+                    BaseReferences<_$BridgeDatabase, $ApprovalGrantsTable,
+                        ApprovalGrant>(db, table, e)
+                  ))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$ApprovalGrantsTableProcessedTableManager = ProcessedTableManager<
+    _$BridgeDatabase,
+    $ApprovalGrantsTable,
+    ApprovalGrant,
+    $$ApprovalGrantsTableFilterComposer,
+    $$ApprovalGrantsTableOrderingComposer,
+    $$ApprovalGrantsTableAnnotationComposer,
+    $$ApprovalGrantsTableCreateCompanionBuilder,
+    $$ApprovalGrantsTableUpdateCompanionBuilder,
+    (
+      ApprovalGrant,
+      BaseReferences<_$BridgeDatabase, $ApprovalGrantsTable, ApprovalGrant>
+    ),
+    ApprovalGrant,
+    PrefetchHooks Function()>;
 
 class $BridgeDatabaseManager {
   final _$BridgeDatabase _db;
@@ -2411,4 +3743,10 @@ class $BridgeDatabaseManager {
       $$TasksTableTableManager(_db, _db.tasks);
   $$AuditLogTableTableManager get auditLog =>
       $$AuditLogTableTableManager(_db, _db.auditLog);
+  $$SettingsTableTableManager get settings =>
+      $$SettingsTableTableManager(_db, _db.settings);
+  $$ProjectRecordsTableTableManager get projectRecords =>
+      $$ProjectRecordsTableTableManager(_db, _db.projectRecords);
+  $$ApprovalGrantsTableTableManager get approvalGrants =>
+      $$ApprovalGrantsTableTableManager(_db, _db.approvalGrants);
 }

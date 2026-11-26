@@ -1,0 +1,23 @@
+body {
+  width: 260px;
+  margin: 0;
+  color: #eef2ff;
+  background: #10131d;
+  font: 13px system-ui, sans-serif;
+}
+
+main { padding: 16px; }
+p { color: #aeb8d0; line-height: 1.4; }
+button {
+  width: 100%;
+  margin-top: 8px;
+  padding: 9px 12px;
+  border: 0;
+  border-radius: 8px;
+  color: #fff;
+  background: #6858e8;
+  cursor: pointer;
+}
+button[hidden] { display: none; }
+#disconnect { background: #34394b; }
+#status { min-height: 1em; }

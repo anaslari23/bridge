@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Brigade Bridge connector settings</title>
+  <style>
+    body { font: 14px system-ui, sans-serif; max-width: 620px; margin: 40px auto; padding: 0 20px; color: #202124; }
+    label { display: block; font-weight: 600; margin: 20px 0 8px; }
+    input { box-sizing: border-box; width: 100%; padding: 10px; font: 13px ui-monospace, monospace; }
+    button { margin-top: 16px; padding: 9px 14px; }
+    #status { margin-left: 10px; color: #176b3a; }
+  </style>
+</head>
+<body>
+  <h1>Brigade Bridge</h1>
+  <p>Paste the local pairing token shown in Brigade Bridge → Settings. This is a local connection token, not a provider API key.</p>
+  <label for="token">Local pairing token</label>
+  <input id="token" type="password" autocomplete="off" spellcheck="false">
+  <button id="save">Save token</button><span id="status"></span>
+  <script src="options.js"></script>
+</body>
+</html>
