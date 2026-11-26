@@ -55,7 +55,7 @@ void main() {
           reason: bad,
         );
       }
-      for (final id in ['a b', 'a/b', r'a;b', '--flag value', 'x' * 129]) {
+      for (final id in ['a b', 'a/b', r'a;b', '--flag', '-x', '--flag value', 'x' * 129]) {
         expect(
           () => AntigravityConnector.validateConfig(
               workingDirectory: dir.path, conversationId: id),

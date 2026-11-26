@@ -47,7 +47,7 @@ yourself with a loopback listener, for example
 `codex app-server --listen ws://127.0.0.1:4500`, find the thread ID of the
 Codex session you want to use, and send a `CONNECT_CODEX` message to the daemon
 with `serverUrl` and `threadId` (`DISCONNECT_CODEX` with `nodeId` to
-disconnect). There is no settings dialog for it yet. Bridge resumes only that
+disconnect), or use **Overlay settings → Codex thread → Connect**. Bridge resumes only that
 thread, reuses Codex's own "Sign in with ChatGPT" login (it never logs in,
 reads credentials, or needs an API key), can relay delegation requests, and
 interrupts the active turn on cancel. Codex approval requests are declined
@@ -59,8 +59,8 @@ Antigravity is supported through its documented headless CLI, not its IDE.
 Install the Antigravity CLI and sign in once by running `agy` interactively.
 Then send a `CONNECT_ANTIGRAVITY` message to the daemon with an absolute
 `workingDirectory` you choose and, optionally, an existing `conversationId`
-(`DISCONNECT_ANTIGRAVITY` with `nodeId` to disconnect). There is no settings
-dialog for it yet. Unlike the other connectors, Bridge starts the `agy`
+(`DISCONNECT_ANTIGRAVITY` with `nodeId` to disconnect), or use **Overlay
+settings → Antigravity (CLI) → Connect**. Unlike the other connectors, Bridge starts the `agy`
 executable (always the one named `agy` on your PATH; it cannot be changed from
 a message) once per task in that directory, sends the prompt on stdin, and
 resumes the same conversation on later tasks. It reuses Antigravity's own
@@ -70,8 +70,26 @@ denied by Antigravity itself and reported in the Bridge log; allow what you
 need in Antigravity's own `permissions.allow` settings. Cancel interrupts the
 running process. File attachments are not supported, and one task runs at a
 time. The connector is tested against a fake `agy` script only, not a real
-install. Claude Desktop ingress and the Antigravity IDE remain unverified and
-are not presented as connected nodes. Browser
+install.
+
+Claude is supported through the Claude Code CLI, not the Claude Desktop chat
+app, which has no documented way to receive tasks from another program. Sign in
+once by running `claude` and using your Claude account, then use **Overlay
+settings → Claude Code (CLI) → Connect** (or send `CONNECT_CLAUDE_CODE` with an
+absolute `workingDirectory` and optional `sessionId`; `DISCONNECT_CLAUDE_CODE`
+with `nodeId` to disconnect). Like Antigravity, Bridge starts your own `claude`
+(always the one on your PATH) once per task with `claude -p --output-format
+stream-json --verbose`, sends the prompt on stdin, and resumes the session with
+`--resume`. Connecting checks `claude auth status` and refuses an API-key
+login; `ANTHROPIC_API_KEY` and `ANTHROPIC_AUTH_TOKEN` are removed from the
+child process so the account login is always the one used. It never passes
+`--dangerously-skip-permissions`, so tool calls that need approval are denied by
+Claude Code itself and reported in the Bridge log. File attachments are not
+supported, one task runs at a time, and cancel interrupts the process. It is
+tested against a fake `claude` script only; the stdin-prompt behaviour and the
+`authMethod` values are not yet confirmed on a real install. The Antigravity
+IDE and Claude Desktop chat app remain unverified and are not presented as
+connected nodes. Browser
 sessions for Claude, ChatGPT/Codex, Antigravity, and other supported web apps
 can be connected individually. For web research, open the search/results page
 you want and connect that tab; Bridge reads its visible page content and links

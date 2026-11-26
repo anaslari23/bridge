@@ -73,7 +73,7 @@ class AntigravityConnector {
       throw const FormatException('The working directory does not exist');
     }
     if (conversationId == null || conversationId.isEmpty) return null;
-    if (!RegExp(r'^[A-Za-z0-9_-]{1,128}$').hasMatch(conversationId)) {
+    if (!RegExp(r'^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$').hasMatch(conversationId)) {
       throw const FormatException('Enter a valid Antigravity conversation ID');
     }
     return conversationId;
@@ -245,7 +245,7 @@ class AntigravityConnector {
   void _learnConversation(Object? id) {
     if (_conversationId == null &&
         id is String &&
-        RegExp(r'^[A-Za-z0-9_-]{1,128}$').hasMatch(id)) {
+        RegExp(r'^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$').hasMatch(id)) {
       _conversationId = id; // later tasks resume the same conversation
     }
   }

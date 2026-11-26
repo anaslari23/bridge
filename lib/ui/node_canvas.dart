@@ -32,7 +32,7 @@ class _NodeCanvasState extends State<NodeCanvas> with SingleTickerProviderStateM
   @override void didUpdateWidget(covariant NodeCanvas oldWidget) { super.didUpdateWidget(oldWidget); if (oldWidget.edges.isEmpty && widget.edges.isNotEmpty) _flowController.repeat(); if (oldWidget.edges.isNotEmpty && widget.edges.isEmpty) _flowController.stop(); }
   @override void dispose() { _flowController.dispose(); super.dispose(); }
   void notifyLayout() => widget.onLayoutChanged?.call(Map.unmodifiable(positions), Map.unmodifiable(sizes), pan, zoom);
-  Offset basePosition(int index, double width) => positions.putIfAbsent(widget.nodes[index].id, () => Offset(30 + (index % 2) * width / 2, 35 + (index ~/ 2) * 150));
+  Offset basePosition(int index, double width) => positions.putIfAbsent(widget.nodes[index].id, () => Offset(30 + (index % 2) * (width / 2 < 204 ? 204.0 : width / 2), 35 + (index ~/ 2) * 174.0));
   @override Widget build(BuildContext context) => LayoutBuilder(builder: (context, constraints) {
     final width = constraints.maxWidth;
     return ClipRect(child: GestureDetector(onScaleUpdate: (details) { setState(() { if (details.pointerCount > 1) { zoom = (zoom * details.scale).clamp(.65, 1.6); } else { pan += details.focalPointDelta; } }); notifyLayout(); }, child: Stack(children: [
@@ -82,9 +82,9 @@ class _NodeCard extends StatelessWidget {
               Text(glyph, style: TextStyle(color: accent)),
               const SizedBox(width: 8),
               Expanded(child: Text(node.name, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold))),
-              if (onCapture != null) IconButton(tooltip: 'Capture window', onPressed: onCapture, padding: EdgeInsets.zero, constraints: const BoxConstraints.tightFor(width: 22, height: 22), icon: const Icon(Icons.camera_alt, size: 14, color: Color(0xff9aa5b8))),
-              IconButton(tooltip: minimized ? 'Expand node' : 'Minimize node', onPressed: onMinimize, padding: EdgeInsets.zero, constraints: const BoxConstraints.tightFor(width: 22, height: 22), icon: const Icon(Icons.remove, size: 14, color: Color(0xff9aa5b8))),
-              IconButton(tooltip: 'Close node', onPressed: onRemove, padding: EdgeInsets.zero, constraints: const BoxConstraints.tightFor(width: 22, height: 22), icon: const Icon(Icons.close, size: 14, color: Color(0xff9aa5b8))),
+              if (onCapture != null) IconButton(tooltip: 'Capture window', onPressed: onCapture, padding: EdgeInsets.zero, style: const ButtonStyle(tapTargetSize: MaterialTapTargetSize.shrinkWrap), constraints: const BoxConstraints.tightFor(width: 22, height: 22), icon: const Icon(Icons.camera_alt, size: 14, color: Color(0xff9aa5b8))),
+              IconButton(tooltip: minimized ? 'Expand node' : 'Minimize node', onPressed: onMinimize, padding: EdgeInsets.zero, style: const ButtonStyle(tapTargetSize: MaterialTapTargetSize.shrinkWrap), constraints: const BoxConstraints.tightFor(width: 22, height: 22), icon: const Icon(Icons.remove, size: 14, color: Color(0xff9aa5b8))),
+              IconButton(tooltip: 'Close node', onPressed: onRemove, padding: EdgeInsets.zero, style: const ButtonStyle(tapTargetSize: MaterialTapTargetSize.shrinkWrap), constraints: const BoxConstraints.tightFor(width: 22, height: 22), icon: const Icon(Icons.close, size: 14, color: Color(0xff9aa5b8))),
             ]),
             if (!minimized) ...[
               const SizedBox(height: 8),

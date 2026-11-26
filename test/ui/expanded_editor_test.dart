@@ -1,3 +1,5 @@
+import 'dart:io';
+import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:brigade_bridge/ui/expanded_editor.dart';
@@ -101,7 +103,7 @@ void main() {
 
     await tester.tap(find.byTooltip('Overlay settings'));
     await tester.pump(const Duration(seconds: 1));
-    await tester.tap(find.text('Connect'));
+    await tester.tap(_connectIn('OpenCode session'));
     await tester.pump(const Duration(seconds: 1));
     await tester.enterText(find.byKey(const ValueKey('opencode-server-url')),
         'http://127.0.0.1:4096');
@@ -141,7 +143,7 @@ void main() {
 
     await tester.tap(find.byTooltip('Overlay settings'));
     await tester.pump(const Duration(seconds: 1));
-    await tester.tap(find.text('Connect'));
+    await tester.tap(_connectIn('OpenCode session'));
     await tester.pump(const Duration(seconds: 1));
     await tester.enterText(find.byKey(const ValueKey('opencode-server-url')),
         'http://example.com:4096');
@@ -474,4 +476,378 @@ void main() {
     await tester.pumpAndSettle();
     expect(createdName, 'Release notes');
   });
+
+  testWidgets('connects Codex, Antigravity and Claude Code from settings',
+      (tester) async {
+    tester.view
+      ..physicalSize = const Size(1800, 1400)
+      ..devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final calls = <String>[];
+    await tester.pumpWidget(MaterialApp(
+      home: ExpandedEditor(
+        nodes: nodes,
+        edges: edges,
+        tasks: const [],
+        onAddEdge: (_, __) {},
+        onRun: () {},
+        onStop: () {},
+        onCompact: () {},
+        onDispatch: (_) {},
+        onApprove: (_) {},
+        onDeny: (_) {},
+        onConnectCodex: (url, id) => calls.add('codex $url $id'),
+        onConnectAntigravity: (dir, id) => calls.add('agy $dir ${id ?? '-'}'),
+        onConnectClaudeCode: (dir, id) => calls.add('claude $dir ${id ?? '-'}'),
+        logEntries: const [],
+        status: TaskStatus.created,
+      ),
+    ));
+    await tester.tap(find.byTooltip('Overlay settings'));
+    await tester.pump(const Duration(seconds: 1));
+
+    await tester.tap(_connectIn('Codex thread'));
+    await tester.pump(const Duration(seconds: 1));
+    await tester.enterText(
+        find.byKey(const ValueKey('codex-thread-id')), 'thr_1');
+    await tester.tap(_submit('Connect Codex'));
+    await tester.pump(const Duration(seconds: 1));
+
+    await tester.tap(_connectIn('Antigravity (CLI)'));
+    await tester.pump(const Duration(seconds: 1));
+    await tester.enterText(
+        find.byKey(const ValueKey('antigravity-working-directory')), '/tmp');
+    await tester.tap(_submit('Connect Antigravity'));
+    await tester.pump(const Duration(seconds: 1));
+
+    await tester.tap(_connectIn('Claude Code (CLI)'));
+    await tester.pump(const Duration(seconds: 1));
+    await tester.enterText(
+        find.byKey(const ValueKey('claude-code-working-directory')), '/tmp');
+    await tester.enterText(
+        find.byKey(const ValueKey('claude-code-session-id')), 'sess-1');
+    await tester.tap(_submit('Connect Claude Code'));
+    await tester.pump(const Duration(seconds: 1));
+
+    expect(calls, [
+      'codex ws://127.0.0.1:4500 thr_1',
+      'agy /tmp -',
+      'claude /tmp sess-1',
+    ]);
+  });
+
+  testWidgets('rejects invalid connector input without connecting',
+      (tester) async {
+    tester.view
+      ..physicalSize = const Size(1800, 1400)
+      ..devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    var called = false;
+    await tester.pumpWidget(MaterialApp(
+      home: ExpandedEditor(
+        nodes: nodes,
+        edges: edges,
+        tasks: const [],
+        onAddEdge: (_, __) {},
+        onRun: () {},
+        onStop: () {},
+        onCompact: () {},
+        onDispatch: (_) {},
+        onApprove: (_) {},
+        onDeny: (_) {},
+        onConnectCodex: (_, __) => called = true,
+        onConnectClaudeCode: (_, __) => called = true,
+        logEntries: const [],
+        status: TaskStatus.created,
+      ),
+    ));
+    await tester.tap(find.byTooltip('Overlay settings'));
+    await tester.pump(const Duration(seconds: 1));
+
+    await tester.tap(_connectIn('Codex thread'));
+    await tester.pump(const Duration(seconds: 1));
+    await tester.enterText(find.byKey(const ValueKey('codex-server-url')),
+        'ws://example.com:4500');
+    await tester.enterText(
+        find.byKey(const ValueKey('codex-thread-id')), 'thr_1');
+    await tester.tap(_submit('Connect Codex'));
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.text('Codex server must be on this computer'), findsOneWidget);
+    await tester.tap(find.text('Cancel'));
+    await tester.pump(const Duration(seconds: 1));
+
+    await tester.tap(_connectIn('Claude Code (CLI)'));
+    await tester.pump(const Duration(seconds: 1));
+    await tester.enterText(
+        find.byKey(const ValueKey('claude-code-working-directory')),
+        'relative/dir');
+    await tester.tap(_submit('Connect Claude Code'));
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.text('Enter an absolute working directory'), findsOneWidget);
+    expect(called, isFalse);
+  });
+
+  testWidgets(
+      'settings dialog scrolls instead of overflowing in a short window',
+      (tester) async {
+    tester.view
+      ..physicalSize = const Size(900, 520)
+      ..devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(MaterialApp(
+      home: ExpandedEditor(
+        nodes: nodes,
+        edges: edges,
+        tasks: const [],
+        onAddEdge: (_, __) {},
+        onRun: () {},
+        onStop: () {},
+        onCompact: () {},
+        onDispatch: (_) {},
+        onApprove: (_) {},
+        onDeny: (_) {},
+        onConnectOpenCode: (_, __) {},
+        onConnectCodex: (_, __) {},
+        onConnectAntigravity: (_, __) {},
+        onConnectClaudeCode: (_, __) {},
+        logEntries: const [],
+        status: TaskStatus.created,
+      ),
+    ));
+    await tester.tap(find.byTooltip('Overlay settings'));
+    await tester.pump(const Duration(seconds: 1));
+
+    // No RenderFlex overflow was reported while laying the dialog out.
+    expect(tester.takeException(), isNull);
+    // The last row is reachable by scrolling.
+    await tester.scrollUntilVisible(
+        find.text('Local Chrome pairing token'), 200,
+        scrollable: find.byType(Scrollable).last);
+    expect(find.text('Local Chrome pairing token'), findsOneWidget);
+  });
+
+  testWidgets('shows a disconnect action for each paired CLI connector',
+      (tester) async {
+    tester.view
+      ..physicalSize = const Size(1800, 1400)
+      ..devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final disconnected = <String>[];
+    await tester.pumpWidget(MaterialApp(
+      home: ExpandedEditor(
+        nodes: [
+          ...nodes,
+          const BridgeNode(
+              id: 'codex:thr_1',
+              name: 'Codex',
+              kind: NodeKind.agent,
+              detail: 'thr_1 at 127.0.0.1:4500',
+              adapterId: 'codex-app-server'),
+          const BridgeNode(
+              id: 'antigravity:new',
+              name: 'Antigravity',
+              kind: NodeKind.agent,
+              detail: 'new conversation in /tmp',
+              adapterId: 'antigravity-cli'),
+          const BridgeNode(
+              id: 'claude-code:new',
+              name: 'Claude Code',
+              kind: NodeKind.agent,
+              detail: 'new session in /tmp',
+              adapterId: 'claude-code-cli'),
+        ],
+        edges: edges,
+        tasks: const [],
+        onAddEdge: (_, __) {},
+        onRun: () {},
+        onStop: () {},
+        onCompact: () {},
+        onDispatch: (_) {},
+        onApprove: (_) {},
+        onDeny: (_) {},
+        onDisconnectCodex: disconnected.add,
+        onDisconnectAntigravity: disconnected.add,
+        onDisconnectClaudeCode: disconnected.add,
+        logEntries: const [],
+        status: TaskStatus.created,
+      ),
+    ));
+    await tester.tap(find.byTooltip('Overlay settings'));
+    await tester.pump(const Duration(seconds: 1));
+
+    for (final title in [
+      'Codex thread',
+      'Antigravity (CLI)',
+      'Claude Code (CLI)'
+    ]) {
+      await tester.tap(find.descendant(
+          of: find.widgetWithText(ListTile, title),
+          matching: find.text('Disconnect')));
+      await tester.pump();
+    }
+    expect(disconnected, ['codex:thr_1', 'antigravity:new', 'claude-code:new']);
+  });
+
+  group('layout', () {
+    Widget editor(List<BridgeNode> nodeList) => MaterialApp(
+          theme: ThemeData.dark(useMaterial3: true),
+          home: ExpandedEditor(
+            nodes: nodeList,
+            edges: const [],
+            tasks: const [],
+            onAddEdge: (_, __) {},
+            onRun: () {},
+            onStop: () {},
+            onCompact: () {},
+            onDispatch: (_) {},
+            onApprove: (_) {},
+            onDeny: (_) {},
+            logEntries: const [],
+            status: TaskStatus.created,
+          ),
+        );
+
+    final threeNodes = [
+      ...nodes,
+      const BridgeNode(
+          id: 'claude-code:new',
+          name: 'Claude Code',
+          kind: NodeKind.agent,
+          detail: 'new session in /home/me/app'),
+    ];
+
+    for (final size in const [
+      Size(700, 500),
+      Size(800, 600),
+      Size(1000, 700),
+      Size(1099, 700),
+      Size(1100, 700),
+      Size(1440, 900),
+    ]) {
+      testWidgets(
+          'has no overflow and keeps Run reachable at '
+          '${size.width.toInt()}x${size.height.toInt()}', (tester) async {
+        tester.view
+          ..physicalSize = size
+          ..devicePixelRatio = 1;
+        addTearDown(tester.view.reset);
+        await tester.pumpWidget(editor(threeNodes));
+        await tester.pump(const Duration(seconds: 1));
+
+        expect(tester.takeException(), isNull);
+        // Run is a labelled button when wide and an icon button when narrow.
+        expect(
+          find.text('Run workflow').evaluate().length +
+              find.byTooltip('Run workflow').evaluate().length,
+          1,
+        );
+      });
+    }
+
+    testWidgets('default node placement leaves a gap between cards',
+        (tester) async {
+      tester.view
+        ..physicalSize = const Size(800, 600)
+        ..devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(editor(threeNodes));
+      await tester.pump(const Duration(seconds: 1));
+
+      // Cards are 180x150. Each pair must be separated by at least a card
+      // size horizontally or vertically (i.e. they do not overlap).
+      final origins = [
+        for (final name in ['Codex', 'Claude', 'Claude Code'])
+          tester.getTopLeft(find.text(name).last),
+      ];
+      for (var i = 0; i < origins.length; i++) {
+        for (var j = i + 1; j < origins.length; j++) {
+          final dx = (origins[i].dx - origins[j].dx).abs();
+          final dy = (origins[i].dy - origins[j].dy).abs();
+          expect(dx >= 180 || dy >= 150, isTrue,
+              reason: 'cards $i and $j overlap (dx=$dx, dy=$dy)');
+        }
+      }
+    });
+
+    testWidgets('node titles are not truncated by the header buttons',
+        (tester) async {
+      final root = Platform.environment['FLUTTER_ROOT'];
+      final fonts = root == null
+          ? null
+          : Directory('$root/bin/cache/artifacts/material_fonts');
+      if (fonts == null || !fonts.existsSync()) {
+        markTestSkipped('Flutter SDK fonts are not available');
+        return;
+      }
+      final loader = FontLoader('Roboto');
+      for (final file in ['Roboto-Regular.ttf', 'Roboto-Bold.ttf']) {
+        loader.addFont(Future.value(ByteData.sublistView(
+            File('${fonts.path}/$file').readAsBytesSync())));
+      }
+      await loader.load();
+      // Loading fonts posts a platform message that schedules a frame; let it
+      // arrive and run before the test body so it cannot outlive the test.
+      await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 100)));
+      await tester.pump();
+
+      tester.view
+        ..physicalSize = const Size(1280, 800)
+        ..devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(MaterialApp(
+        theme: ThemeData.dark(useMaterial3: true).copyWith(
+            textTheme:
+                Typography.material2021().white.apply(fontFamily: 'Roboto')),
+        home: ExpandedEditor(
+          nodes: const [
+            BridgeNode(
+                id: 'claude-code:new',
+                name: 'Claude Code',
+                kind: NodeKind.agent,
+                detail: 'new session'),
+            BridgeNode(
+                id: 'tab-7',
+                name: 'Antigravity tab',
+                kind: NodeKind.browser,
+                detail: 'Tab 7'),
+          ],
+          edges: const [],
+          tasks: const [],
+          onAddEdge: (_, __) {},
+          onRun: () {},
+          onStop: () {},
+          onCompact: () {},
+          onDispatch: (_) {},
+          onApprove: (_) {},
+          onDeny: (_) {},
+          logEntries: const [],
+          status: TaskStatus.created,
+        ),
+      ));
+      await tester.pump(const Duration(seconds: 1));
+
+      for (final name in ['Claude Code', 'Antigravity tab']) {
+        final rendered = tester.getSize(find.text(name).last).width;
+        final natural = (TextPainter(
+          text: TextSpan(
+              text: name,
+              style: const TextStyle(
+                  fontFamily: 'Roboto',
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold)),
+          textDirection: TextDirection.ltr,
+        )..layout())
+            .width;
+        expect(rendered, greaterThanOrEqualTo(natural - 1),
+            reason: '"$name" is ellipsised (rendered $rendered < $natural)');
+      }
+    });
+  });
 }
+
+Finder _connectIn(String tileTitle) => find.descendant(
+    of: find.widgetWithText(ListTile, tileTitle),
+    matching: find.text('Connect'));
+
+Finder _submit(String label) => find.widgetWithText(FilledButton, label);

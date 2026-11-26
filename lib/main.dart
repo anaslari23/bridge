@@ -719,6 +719,35 @@ class _AppShellState extends State<_AppShell> {
         'type': 'DISCONNECT_OPENCODE',
         'nodeId': nodeId,
       }),
+      onConnectCodex: (serverUrl, threadId) => _daemonSend?.send({
+        'type': 'CONNECT_CODEX',
+        'serverUrl': serverUrl,
+        'threadId': threadId,
+      }),
+      onDisconnectCodex: (nodeId) => _daemonSend?.send({
+        'type': 'DISCONNECT_CODEX',
+        'nodeId': nodeId,
+      }),
+      onConnectAntigravity: (workingDirectory, conversationId) =>
+          _daemonSend?.send({
+        'type': 'CONNECT_ANTIGRAVITY',
+        'workingDirectory': workingDirectory,
+        if (conversationId != null) 'conversationId': conversationId,
+      }),
+      onDisconnectAntigravity: (nodeId) => _daemonSend?.send({
+        'type': 'DISCONNECT_ANTIGRAVITY',
+        'nodeId': nodeId,
+      }),
+      onConnectClaudeCode: (workingDirectory, sessionId) =>
+          _daemonSend?.send({
+        'type': 'CONNECT_CLAUDE_CODE',
+        'workingDirectory': workingDirectory,
+        if (sessionId != null) 'sessionId': sessionId,
+      }),
+      onDisconnectClaudeCode: (nodeId) => _daemonSend?.send({
+        'type': 'DISCONNECT_CLAUDE_CODE',
+        'nodeId': nodeId,
+      }),
       onSelectWorkspace: (id) =>
           _daemonSend?.send({'type': 'LOAD_WORKSPACE', 'id': id}),
       onSelectProject: (id) {
