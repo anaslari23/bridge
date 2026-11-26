@@ -11,6 +11,7 @@ import 'permission_manager.dart';
 import 'project_store.dart';
 import 'lead_router.dart';
 import 'delegation_manager.dart';
+import 'antigravity_connector.dart';
 import 'codex_connector.dart';
 import 'opencode_connector.dart';
 import 'secret_redactor.dart';
@@ -27,8 +28,11 @@ class WsServer {
     required this.pm,
     this.projectStore,
     this.authToken,
+    this.antigravityExecutable = 'agy',
   });
 
+  /// Fixed at construction (tests only); never settable from daemon messages.
+  final String antigravityExecutable;
   final int port;
   final EventBus bus;
   final WorkflowEngine engine;
@@ -66,6 +70,52 @@ class WsServer {
   final _openCodeTaskOwners = <String, OpenCodeConnector>{};
   CodexConnector? _codexConnector;
   final _codexTaskOwners = <String, CodexConnector>{};
+  AntigravityConnector? _antigravityConnector;
+  final _antigravityTaskOwners = <String, AntigravityConnector>{};
+
+  Future<BridgeNode> connectAntigravity({
+    required String workingDirectory,
+    String? conversationId,
+  }) async {
+    final current = _antigravityConnector;
+    if (current != null) {
+      throw StateError('Disconnect the current Antigravity session first');
+    }
+    final connector = AntigravityConnector(
+      workingDirectory: workingDirectory,
+      conversationId: conversationId,
+      executable: antigravityExecutable,
+      onNotice: (message) => bus.publish(LogEntry(message, severity: 'warning')),
+    );
+    try {
+      final node = await connector.connect();
+      _antigravityConnector = connector;
+      await registry.register(node);
+      return node;
+    } catch (_) {
+      await connector.close();
+      rethrow;
+    }
+  }
+
+  Future<void> disconnectAntigravity(String nodeId) async {
+    final connector = _antigravityConnector;
+    if (connector == null || nodeId != connector.nodeId) return;
+    _antigravityConnector = null;
+    for (final taskId in _antigravityTaskOwners.entries
+        .where((entry) => entry.value == connector)
+        .map((entry) => entry.key)
+        .toList()) {
+      try {
+        await connector.cancelTask(taskId);
+      } catch (_) {
+        // close() below stops any remaining process.
+      }
+      _antigravityTaskOwners.remove(taskId);
+    }
+    await connector.close();
+    await registry.remove(nodeId);
+  }
 
   Future<BridgeNode> connectCodex({
     required String serverUrl,
@@ -651,12 +701,20 @@ ${sources.isEmpty ? '(No source links were visible on the connected page.)' : so
         throw AdapterDispatchException(
             'Codex thread connector does not support file attachments');
       }
+      final isAntigravity =
+          task.targetNodeId.startsWith(AntigravityConnector.nodeIdPrefix);
+      if (isAntigravity && task.attachments.isNotEmpty) {
+        throw AdapterDispatchException(
+            'Antigravity connector does not support file attachments');
+      }
       final output = isOpenCode
           ? await _sendTaskToOpenCode(task, prompt)
           : isCodex
               ? await _sendTaskToCodex(task, prompt)
-              : await _sendTaskOnce(task, prompt,
-                  includeAttachments: handoffs == 0);
+              : isAntigravity
+                  ? await _sendTaskToAntigravity(task, prompt)
+                  : await _sendTaskOnce(task, prompt,
+                      includeAttachments: handoffs == 0);
       final directive =
           output == null ? null : BridgeProtocol.parseDelegation(output);
       if (directive == null) return output;
@@ -735,6 +793,31 @@ ${sources.isEmpty ? '(No source links were visible on the connected page.)' : so
     }
   }
 
+  Future<String?> _sendTaskToAntigravity(BridgeTask task, String prompt) async {
+    final connector = _antigravityConnector;
+    if (connector == null || task.targetNodeId != connector.nodeId) {
+      throw AdapterDispatchException('Antigravity session is unavailable');
+    }
+    _antigravityTaskOwners[task.id] = connector;
+    try {
+      return await connector.sendTask(task, prompt: prompt);
+    } catch (error) {
+      if (error is AntigravitySessionBusyException) {
+        throw AdapterDispatchException(
+          'Antigravity already has active work; try again when it finishes',
+        );
+      }
+      await registry.updateHealth(task.targetNodeId, 'unavailable');
+      throw AdapterDispatchException(
+        'Antigravity request failed: ${SecretRedactor.redact(error.toString())}',
+      );
+    } finally {
+      if (_antigravityTaskOwners[task.id] == connector) {
+        _antigravityTaskOwners.remove(task.id);
+      }
+    }
+  }
+
   Future<String?> _sendTaskOnce(
     BridgeTask task,
     String text, {
@@ -797,6 +880,11 @@ ${sources.isEmpty ? '(No source links were visible on the connected page.)' : so
     final codex = _codexTaskOwners.remove(bridgeTaskId);
     if (codex != null) {
       await codex.cancelTask(bridgeTaskId);
+      return;
+    }
+    final antigravity = _antigravityTaskOwners.remove(bridgeTaskId);
+    if (antigravity != null) {
+      await antigravity.cancelTask(bridgeTaskId);
       return;
     }
     final externalTaskId = _bridgeTaskExternalIds.remove(bridgeTaskId);
@@ -1102,6 +1190,9 @@ ${sources.isEmpty ? '(No source links were visible on the connected page.)' : so
     final codex = _codexConnector;
     _codexConnector = null;
     await codex?.close();
+    final antigravity = _antigravityConnector;
+    _antigravityConnector = null;
+    await antigravity?.close();
     for (final ws in _clients) {
       try {
         await ws.close();

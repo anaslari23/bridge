@@ -55,9 +55,23 @@ automatically because Bridge does not expose them, so grant what the task needs
 inside Codex. File attachments are not supported, and one Bridge task can run
 per Codex thread at a time. The connector is tested against a simulated
 app-server only; it has not yet been run against a real Codex install.
-Claude Desktop ingress and Antigravity native IDE ingress remain
-unverified; their native apps are not presented as connected nodes. Antigravity
-documents a separate CLI route, but Bridge does not use or launch it. Browser
+Antigravity is supported through its documented headless CLI, not its IDE.
+Install the Antigravity CLI and sign in once by running `agy` interactively.
+Then send a `CONNECT_ANTIGRAVITY` message to the daemon with an absolute
+`workingDirectory` you choose and, optionally, an existing `conversationId`
+(`DISCONNECT_ANTIGRAVITY` with `nodeId` to disconnect). There is no settings
+dialog for it yet. Unlike the other connectors, Bridge starts the `agy`
+executable (always the one named `agy` on your PATH; it cannot be changed from
+a message) once per task in that directory, sends the prompt on stdin, and
+resumes the same conversation on later tasks. It reuses Antigravity's own
+cached login and never reads credentials. It does not pass
+`--dangerously-skip-permissions`, so actions Antigravity would ask about are
+denied by Antigravity itself and reported in the Bridge log; allow what you
+need in Antigravity's own `permissions.allow` settings. Cancel interrupts the
+running process. File attachments are not supported, and one task runs at a
+time. The connector is tested against a fake `agy` script only, not a real
+install. Claude Desktop ingress and the Antigravity IDE remain unverified and
+are not presented as connected nodes. Browser
 sessions for Claude, ChatGPT/Codex, Antigravity, and other supported web apps
 can be connected individually. For web research, open the search/results page
 you want and connect that tab; Bridge reads its visible page content and links

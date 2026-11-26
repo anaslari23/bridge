@@ -270,6 +270,26 @@ class Daemon {
           await server.disconnectCodex(msg['nodeId'] as String);
           bus.publish(LogEntry('Disconnected Codex thread'));
         }
+        if (type == 'CONNECT_ANTIGRAVITY') {
+          try {
+            // The executable is deliberately not configurable from messages.
+            final node = await server.connectAntigravity(
+              workingDirectory: msg['workingDirectory'] as String,
+              conversationId: msg['conversationId'] as String?,
+            );
+            bus.publish(
+                LogEntry('Connected Antigravity session ${node.detail}'));
+          } catch (error) {
+            bus.publish(LogEntry(
+              'Antigravity connection failed: ${error.toString()}',
+              severity: 'error',
+            ));
+          }
+        }
+        if (type == 'DISCONNECT_ANTIGRAVITY') {
+          await server.disconnectAntigravity(msg['nodeId'] as String);
+          bus.publish(LogEntry('Disconnected Antigravity session'));
+        }
         if (type == 'RUN_WORKFLOW') {
           server.runWorkflow({
             'nodes': msg['nodes'] ?? [],
