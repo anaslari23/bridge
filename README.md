@@ -104,6 +104,15 @@ tabs or receive tasks. Sensitive actions remain approval-gated, and text task
 results are redacted before they are persisted as logs, database status, or
 artifacts.
 
+## Claude Desktop extension
+
+`claude-desktop-extension/` is a Claude Desktop extension (`.mcpb`) that lets
+Claude hand tasks to the apps connected to Bridge (`bridge_delegate` and
+friends) over the local daemon, using the pairing token. Bridge's approval
+prompts still apply, and a delegation from the extension never clears the
+emergency Stop. See `claude-desktop-extension/README.md` to build and install
+it. Run its tests with `cd claude-desktop-extension && npm test`.
+
 ## Development checks
 
 ```text
@@ -115,6 +124,7 @@ node --check chrome-extension/popup.js
 node test/connector/content_protocol_test.js
 node test/connector/explicit_connection_test.js
 node test/connector/web_research_test.js
+(cd claude-desktop-extension && npm test)
 flutter test test/daemon/opencode_connector_test.dart
 flutter test test/daemon/opencode_integration_test.dart
 swiftc -parse macos/Runner/BridgeChannel.swift macos/Runner/AppDelegate.swift macos/Runner/MainFlutterWindow.swift

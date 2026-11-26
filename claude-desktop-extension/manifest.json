@@ -1,0 +1,49 @@
+{
+  "manifest_version": "0.3",
+  "name": "brigade-bridge",
+  "display_name": "Brigade Bridge",
+  "version": "0.1.0",
+  "description": "Let Claude hand tasks to the other apps you have connected to Brigade Bridge, using their existing logins.",
+  "long_description": "Brigade Bridge connects coding agents such as Codex, Antigravity and Claude Code without API keys. This extension lets Claude Desktop send a task to one of those connected apps and read back the answer. Bridge shows its own approval prompt for sensitive actions, so you stay in control. Requires the Brigade Bridge app to be running on this computer. Copy the local pairing token from Brigade Bridge (Overlay settings) into this extension's settings.",
+  "author": { "name": "Brigade Bridge" },
+  "license": "UNLICENSED",
+  "keywords": ["bridge", "delegation", "agents"],
+  "server": {
+    "type": "node",
+    "entry_point": "server/index.js",
+    "mcp_config": {
+      "command": "node",
+      "args": ["${__dirname}/server/index.js"],
+      "env": {
+        "BRIDGE_TOKEN": "${user_config.bridge_token}",
+        "BRIDGE_URL": "${user_config.bridge_url}"
+      }
+    }
+  },
+  "tools": [
+    { "name": "bridge_list_nodes", "description": "List the apps connected to Brigade Bridge that can receive a task" },
+    { "name": "bridge_delegate", "description": "Send a task to a connected app and return its answer" },
+    { "name": "bridge_get_result", "description": "Wait for or check a delegated task" },
+    { "name": "bridge_cancel", "description": "Cancel a delegated task" }
+  ],
+  "user_config": {
+    "bridge_token": {
+      "type": "string",
+      "title": "Bridge pairing token",
+      "description": "The local pairing token shown in Brigade Bridge under Overlay settings. It only works on this computer.",
+      "sensitive": true,
+      "required": true
+    },
+    "bridge_url": {
+      "type": "string",
+      "title": "Bridge address",
+      "description": "Where Brigade Bridge listens. Leave the default unless you changed it.",
+      "default": "ws://127.0.0.1:7432",
+      "required": false
+    }
+  },
+  "compatibility": {
+    "platforms": ["darwin", "win32", "linux"],
+    "runtimes": { "node": ">=18.0.0" }
+  }
+}

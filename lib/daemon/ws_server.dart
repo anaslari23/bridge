@@ -555,7 +555,15 @@ class WsServer {
             ws.add(jsonEncode({
               'type': 'NODE_LIST',
               'payload': {
-                'nodes': nodes.map((n) => {'id': n.id, 'name': n.name}).toList()
+                'nodes': nodes
+                    .map((n) => {
+                          'id': n.id,
+                          'name': n.name,
+                          'kind': n.kind.name,
+                          'capabilities': n.capabilities,
+                          'taskDomains': n.taskDomains,
+                        })
+                    .toList()
               },
             }));
           });
@@ -660,9 +668,18 @@ class WsServer {
     if (projectStore != null && !await projectStore!.contains(projectId)) {
       throw FormatException('Unknown project: $projectId');
     }
-    // A new explicit dispatch is also the user's intent to resume after an
-    // emergency stop.
-    engine.reset();
+    // A dispatch typed by the user is also their intent to resume after an
+    // emergency stop. A request from an outside agent (for example the Claude
+    // Desktop extension, which marks itself origin=external) must never undo
+    // the user's Stop.
+    if (payload['origin'] == 'external') {
+      if (engine.isStopped) {
+        throw const FormatException(
+            'Bridge is stopped; resume it in Bridge before delegating');
+      }
+    } else {
+      engine.reset();
+    }
     final taskText = payload['taskText'] as String;
     final workflowId = payload['workflowId'] as String?;
     final overrideNodeId = payload['targetNodeId'] as String?;

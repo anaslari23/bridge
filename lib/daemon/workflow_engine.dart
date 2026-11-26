@@ -47,6 +47,9 @@ class WorkflowEngine {
   /// Cancels the currently executing adapter task when the workflow stops.
   Future<void> Function(BridgeTask task)? cancelTask;
 
+  /// True after an emergency stop until a user-initiated dispatch resets it.
+  bool get isStopped => _stopped;
+
   void emergencyStop() {
     _stopped = true;
     scheduler.stop();
