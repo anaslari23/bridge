@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../core/bridge_models.dart';
 import 'node_canvas.dart';
 import 'activity_inspector.dart';
@@ -6,6 +7,7 @@ import '../daemon/event_bus.dart';
 import '../daemon/antigravity_connector.dart';
 import '../daemon/claude_code_connector.dart';
 import '../daemon/codex_connector.dart';
+import '../daemon/daemon.dart' show Daemon;
 import '../daemon/opencode_connector.dart';
 
 class ExpandedEditor extends StatefulWidget {
@@ -303,6 +305,17 @@ class _ExpandedEditorState extends State<ExpandedEditor> {
                     ),
                     ListTile(
                       contentPadding: EdgeInsets.zero,
+                      leading: const Icon(Icons.extension_outlined, size: 20),
+                      title: const Text('Claude Desktop extension'),
+                      subtitle: const Text(
+                          'Pairing token and setup steps for the Bridge extension'),
+                      trailing: TextButton(
+                        onPressed: _showExtensionTokenDialog,
+                        child: const Text('Set up'),
+                      ),
+                    ),
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
                       leading: const Icon(Icons.key, size: 20),
                       title: const Text('Local Chrome pairing token'),
                       subtitle: Text(
@@ -508,6 +521,15 @@ class _ExpandedEditorState extends State<ExpandedEditor> {
           connectLabel: connectLabel,
           validate: validate,
           onSubmit: onSubmit,
+        ),
+      );
+
+  Future<void> _showExtensionTokenDialog() => showDialog<void>(
+        context: context,
+        builder: (_) => _ExtensionTokenDialog(
+          token: widget.localAuthToken,
+          address: 'ws://127.0.0.1:${Daemon.port}',
+          onCopyToken: widget.onCopyLocalAuthToken,
         ),
       );
 
@@ -1107,4 +1129,135 @@ class _ConnectorDialogState extends State<_ConnectorDialog> {
           FilledButton(onPressed: _submit, child: Text(widget.connectLabel)),
         ],
       );
+}
+
+/// Shows what the Claude Desktop extension needs: the local pairing token
+/// (masked until revealed) and the daemon address.
+class _ExtensionTokenDialog extends StatefulWidget {
+  const _ExtensionTokenDialog({
+    required this.token,
+    required this.address,
+    required this.onCopyToken,
+  });
+
+  final String token;
+  final String address;
+  final VoidCallback? onCopyToken;
+
+  @override
+  State<_ExtensionTokenDialog> createState() => _ExtensionTokenDialogState();
+}
+
+class _ExtensionTokenDialogState extends State<_ExtensionTokenDialog> {
+  bool _revealed = false;
+  String _notice = '';
+
+  bool get _hasToken => widget.token.isNotEmpty;
+
+  Future<void> _copyAddress() async {
+    await Clipboard.setData(ClipboardData(text: widget.address));
+    if (mounted) setState(() => _notice = 'Address copied to the clipboard');
+  }
+
+  void _copyToken() {
+    widget.onCopyToken?.call();
+    setState(() => _notice = 'Token copied to the clipboard');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    const label = TextStyle(fontSize: 11, color: Color(0xff9ca8b9));
+    const mono = TextStyle(
+      fontFamily: 'Menlo',
+      fontFamilyFallback: ['Consolas', 'Courier New', 'monospace'],
+      fontSize: 12,
+    );
+    final shownToken = !_hasToken
+        ? 'Starting local daemon…'
+        : _revealed
+            ? widget.token
+            : '•' * 24;
+    return AlertDialog(
+      title: const Text('Claude Desktop extension'),
+      scrollable: true,
+      content: SizedBox(
+        width: 440,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+                'Paste these two values into the Brigade Bridge extension\'s settings in Claude Desktop.'),
+            const SizedBox(height: 16),
+            const Text('Bridge pairing token', style: label),
+            Row(children: [
+              Expanded(
+                child: _revealed && _hasToken
+                    ? SelectableText(shownToken,
+                        key: const ValueKey('extension-token-field'),
+                        style: mono)
+                    : Text(shownToken,
+                        key: const ValueKey('extension-token-field'),
+                        style: mono),
+              ),
+              IconButton(
+                key: const ValueKey('extension-token-reveal'),
+                tooltip: _revealed ? 'Hide token' : 'Show token',
+                onPressed: _hasToken
+                    ? () => setState(() => _revealed = !_revealed)
+                    : null,
+                icon: Icon(_revealed ? Icons.visibility_off : Icons.visibility,
+                    size: 18),
+              ),
+              IconButton(
+                key: const ValueKey('extension-token-copy'),
+                tooltip: 'Copy token',
+                onPressed: _hasToken ? _copyToken : null,
+                icon: const Icon(Icons.copy, size: 18),
+              ),
+            ]),
+            const SizedBox(height: 8),
+            const Text('Bridge address', style: label),
+            Row(children: [
+              Expanded(
+                  child: SelectableText(widget.address,
+                      key: const ValueKey('extension-address-field'),
+                      style: mono)),
+              IconButton(
+                key: const ValueKey('extension-address-copy'),
+                tooltip: 'Copy address',
+                onPressed: _copyAddress,
+                icon: const Icon(Icons.copy, size: 18),
+              ),
+            ]),
+            if (_notice.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(_notice,
+                    key: const ValueKey('extension-copy-notice'),
+                    style: const TextStyle(
+                        fontSize: 11, color: Color(0xff7fd99a))),
+              ),
+            const SizedBox(height: 16),
+            const Text('Setup', style: label),
+            const SizedBox(height: 4),
+            const Text(
+                '1. In Claude Desktop open Settings > Extensions > Advanced settings > Install Extension… and choose brigade-bridge.mcpb (build it from the claude-desktop-extension folder; see its README).\n'
+                '2. Paste the token and address above when the extension asks.\n'
+                '3. Keep Brigade Bridge running and connect the apps you want Claude to use.',
+                style: TextStyle(fontSize: 12, height: 1.5)),
+            const SizedBox(height: 12),
+            const Text(
+                'Anyone who has this token on this computer can send tasks to Bridge, so do not share it. Bridge still asks you to approve sensitive actions, and its Stop button blocks the extension.',
+                style: TextStyle(
+                    fontSize: 11, height: 1.4, color: Color(0xff9ca8b9))),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+            onPressed: () => Navigator.pop(context), child: const Text('Done')),
+      ],
+    );
+  }
 }

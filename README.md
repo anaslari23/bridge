@@ -110,8 +110,10 @@ artifacts.
 Claude hand tasks to the apps connected to Bridge (`bridge_delegate` and
 friends) over the local daemon, using the pairing token. Bridge's approval
 prompts still apply, and a delegation from the extension never clears the
-emergency Stop. See `claude-desktop-extension/README.md` to build and install
-it. Run its tests with `cd claude-desktop-extension && npm test`.
+emergency Stop. **Overlay settings → Claude Desktop extension → Set up** shows
+the pairing token (hidden until you reveal it) and the address to paste into
+the extension's settings. See `claude-desktop-extension/README.md` to build and
+install it. Run its tests with `cd claude-desktop-extension && npm test`.
 
 ## Development checks
 

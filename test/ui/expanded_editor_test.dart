@@ -844,6 +844,174 @@ void main() {
       }
     });
   });
+
+  group('extension token dialog', () {
+    const token = 'tok-abcdef-0123456789';
+
+    Future<int> openDialog(WidgetTester tester,
+        {String localToken = token, Size size = const Size(1800, 1400)}) async {
+      tester.view
+        ..physicalSize = size
+        ..devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      var copies = 0;
+      await tester.pumpWidget(MaterialApp(
+        home: ExpandedEditor(
+          nodes: nodes,
+          edges: edges,
+          tasks: const [],
+          onAddEdge: (_, __) {},
+          onRun: () {},
+          onStop: () {},
+          onCompact: () {},
+          onDispatch: (_) {},
+          onApprove: (_) {},
+          onDeny: (_) {},
+          localAuthToken: localToken,
+          onCopyLocalAuthToken: () => copies++,
+          logEntries: const [],
+          status: TaskStatus.created,
+        ),
+      ));
+      await tester.tap(find.byTooltip('Overlay settings'));
+      await tester.pump(const Duration(seconds: 1));
+      final tile = find.widgetWithText(ListTile, 'Claude Desktop extension');
+      await tester.scrollUntilVisible(tile, 200,
+          scrollable: find.byType(Scrollable).last);
+      await tester
+          .tap(find.descendant(of: tile, matching: find.text('Set up')));
+      await tester.pump(const Duration(seconds: 1));
+      await tester.pump(const Duration(milliseconds: 400));
+      return copies;
+    }
+
+    String fieldText(WidgetTester tester, String key) {
+      final widget = tester.widget(find.byKey(ValueKey(key)));
+      if (widget is Text) return widget.data!;
+      if (widget is SelectableText) return widget.data!;
+      throw StateError('unexpected widget $widget');
+    }
+
+    testWidgets('hides the token until revealed, and can hide it again',
+        (tester) async {
+      await openDialog(tester);
+      expect(
+          fieldText(tester, 'extension-token-field'), isNot(contains('tok')));
+      expect(fieldText(tester, 'extension-token-field'), '•' * 24);
+
+      await tester.tap(find.byKey(const ValueKey('extension-token-reveal')));
+      await tester.pump();
+      expect(fieldText(tester, 'extension-token-field'), token);
+
+      await tester.tap(find.byKey(const ValueKey('extension-token-reveal')));
+      await tester.pump();
+      expect(fieldText(tester, 'extension-token-field'), '•' * 24);
+    });
+
+    testWidgets(
+        'copies the token through the app callback without revealing it',
+        (tester) async {
+      var copies = 0;
+      tester.view
+        ..physicalSize = const Size(1800, 1400)
+        ..devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(MaterialApp(
+        home: ExpandedEditor(
+          nodes: nodes,
+          edges: edges,
+          tasks: const [],
+          onAddEdge: (_, __) {},
+          onRun: () {},
+          onStop: () {},
+          onCompact: () {},
+          onDispatch: (_) {},
+          onApprove: (_) {},
+          onDeny: (_) {},
+          localAuthToken: token,
+          onCopyLocalAuthToken: () => copies++,
+          logEntries: const [],
+          status: TaskStatus.created,
+        ),
+      ));
+      await tester.tap(find.byTooltip('Overlay settings'));
+      await tester.pump(const Duration(seconds: 1));
+      final tile = find.widgetWithText(ListTile, 'Claude Desktop extension');
+      await tester.scrollUntilVisible(tile, 200,
+          scrollable: find.byType(Scrollable).last);
+      await tester
+          .tap(find.descendant(of: tile, matching: find.text('Set up')));
+      await tester.pump(const Duration(seconds: 1));
+      await tester.pump(const Duration(milliseconds: 400));
+
+      await tester.tap(find.byKey(const ValueKey('extension-token-copy')));
+      await tester.pump();
+      expect(copies, 1);
+      expect(find.text('Token copied to the clipboard'), findsOneWidget);
+      expect(fieldText(tester, 'extension-token-field'), '•' * 24);
+    });
+
+    testWidgets('shows the daemon address and copies it to the clipboard',
+        (tester) async {
+      final clipboard = <String?>[];
+      tester.binding.defaultBinaryMessenger
+          .setMockMethodCallHandler(SystemChannels.platform, (call) async {
+        if (call.method == 'Clipboard.setData') {
+          clipboard.add((call.arguments as Map)['text'] as String?);
+        }
+        return null;
+      });
+      addTearDown(() => tester.binding.defaultBinaryMessenger
+          .setMockMethodCallHandler(SystemChannels.platform, null));
+      await openDialog(tester);
+
+      expect(
+          fieldText(tester, 'extension-address-field'), 'ws://127.0.0.1:7432');
+      await tester.tap(find.byKey(const ValueKey('extension-address-copy')));
+      await tester.pump();
+      expect(clipboard, ['ws://127.0.0.1:7432']);
+      expect(find.text('Address copied to the clipboard'), findsOneWidget);
+    });
+
+    testWidgets('disables reveal and copy while the daemon is still starting',
+        (tester) async {
+      await openDialog(tester, localToken: '');
+      expect(
+          fieldText(tester, 'extension-token-field'), 'Starting local daemon…');
+      expect(
+          tester
+              .widget<IconButton>(
+                  find.byKey(const ValueKey('extension-token-reveal')))
+              .onPressed,
+          isNull);
+      expect(
+          tester
+              .widget<IconButton>(
+                  find.byKey(const ValueKey('extension-token-copy')))
+              .onPressed,
+          isNull);
+    });
+
+    testWidgets('fits a small window and can be closed', (tester) async {
+      await openDialog(tester, size: const Size(800, 600));
+      expect(tester.takeException(), isNull);
+
+      // Two dialogs are open (settings, then this one), each with its own
+      // Done button; use the one inside the extension dialog.
+      final dialog = find.ancestor(
+          of: find.byKey(const ValueKey('extension-token-field')),
+          matching: find.byType(AlertDialog));
+      final done = find.descendant(of: dialog, matching: find.text('Done'));
+      expect(done, findsOneWidget);
+      await tester.tap(done);
+      // The first frame only starts the closing animation; the second ends it.
+      await tester.pump(const Duration(seconds: 1));
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(find.byKey(const ValueKey('extension-token-field')), findsNothing);
+      // The settings dialog underneath is still open.
+      expect(find.text('Overlay settings'), findsOneWidget);
+    });
+  });
 }
 
 Finder _connectIn(String tileTitle) => find.descendant(

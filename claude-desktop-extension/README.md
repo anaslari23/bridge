@@ -22,7 +22,8 @@ Claude Code instead (Overlay settings → Claude Code).
 2. In Claude Desktop open **Settings → Extensions → Advanced settings → Install
    Extension…** and choose `dist/brigade-bridge.mcpb`.
 3. When asked, paste the **Bridge pairing token**: in Brigade Bridge open
-   *Overlay settings* and copy the *Local Chrome pairing token*. Claude Desktop
+   *Overlay settings → Claude Desktop extension → Set up*, reveal or copy the
+   token and the address. Claude Desktop
    stores it as a sensitive setting. Leave the address as `ws://127.0.0.1:7432`.
 4. Keep Brigade Bridge running and connect the apps you want Claude to use.
 
