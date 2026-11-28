@@ -252,6 +252,63 @@ class Daemon {
           await server.disconnectOpenCode(msg['nodeId'] as String);
           bus.publish(LogEntry('Disconnected OpenCode session'));
         }
+        if (type == 'CONNECT_CODEX') {
+          try {
+            final node = await server.connectCodex(
+              serverUrl: msg['serverUrl'] as String,
+              threadId: msg['threadId'] as String,
+            );
+            bus.publish(LogEntry('Connected Codex thread ${node.detail}'));
+          } catch (error) {
+            bus.publish(LogEntry(
+              'Codex connection failed: ${error.toString()}',
+              severity: 'error',
+            ));
+          }
+        }
+        if (type == 'DISCONNECT_CODEX') {
+          await server.disconnectCodex(msg['nodeId'] as String);
+          bus.publish(LogEntry('Disconnected Codex thread'));
+        }
+        if (type == 'CONNECT_ANTIGRAVITY') {
+          try {
+            // The executable is deliberately not configurable from messages.
+            final node = await server.connectAntigravity(
+              workingDirectory: msg['workingDirectory'] as String,
+              conversationId: msg['conversationId'] as String?,
+            );
+            bus.publish(
+                LogEntry('Connected Antigravity session ${node.detail}'));
+          } catch (error) {
+            bus.publish(LogEntry(
+              'Antigravity connection failed: ${error.toString()}',
+              severity: 'error',
+            ));
+          }
+        }
+        if (type == 'DISCONNECT_ANTIGRAVITY') {
+          await server.disconnectAntigravity(msg['nodeId'] as String);
+          bus.publish(LogEntry('Disconnected Antigravity session'));
+        }
+        if (type == 'CONNECT_CLAUDE_CODE') {
+          try {
+            // The executable is deliberately not configurable from messages.
+            final node = await server.connectClaudeCode(
+              workingDirectory: msg['workingDirectory'] as String,
+              sessionId: msg['sessionId'] as String?,
+            );
+            bus.publish(LogEntry('Connected Claude Code ${node.detail}'));
+          } catch (error) {
+            bus.publish(LogEntry(
+              'Claude Code connection failed: ${error.toString()}',
+              severity: 'error',
+            ));
+          }
+        }
+        if (type == 'DISCONNECT_CLAUDE_CODE') {
+          await server.disconnectClaudeCode(msg['nodeId'] as String);
+          bus.publish(LogEntry('Disconnected Claude Code'));
+        }
         if (type == 'RUN_WORKFLOW') {
           server.runWorkflow({
             'nodes': msg['nodes'] ?? [],

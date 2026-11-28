@@ -11,6 +11,9 @@ import 'permission_manager.dart';
 import 'project_store.dart';
 import 'lead_router.dart';
 import 'delegation_manager.dart';
+import 'antigravity_connector.dart';
+import 'claude_code_connector.dart';
+import 'codex_connector.dart';
 import 'opencode_connector.dart';
 import 'secret_redactor.dart';
 import 'workflow_engine.dart';
@@ -26,8 +29,14 @@ class WsServer {
     required this.pm,
     this.projectStore,
     this.authToken,
+    this.antigravityExecutable = 'agy',
+    this.claudeCodeExecutable = 'claude',
   });
 
+  /// Fixed at construction (tests only); never settable from daemon messages.
+  final String claudeCodeExecutable;
+  /// Fixed at construction (tests only); never settable from daemon messages.
+  final String antigravityExecutable;
   final int port;
   final EventBus bus;
   final WorkflowEngine engine;
@@ -63,6 +72,151 @@ class WsServer {
   final _researchOwners = <String, WebSocket>{};
   OpenCodeConnector? _openCodeConnector;
   final _openCodeTaskOwners = <String, OpenCodeConnector>{};
+  CodexConnector? _codexConnector;
+  final _codexTaskOwners = <String, CodexConnector>{};
+  AntigravityConnector? _antigravityConnector;
+  final _antigravityTaskOwners = <String, AntigravityConnector>{};
+  ClaudeCodeConnector? _claudeCodeConnector;
+  final _claudeCodeTaskOwners = <String, ClaudeCodeConnector>{};
+
+  Future<BridgeNode> connectClaudeCode({
+    required String workingDirectory,
+    String? sessionId,
+  }) async {
+    if (_claudeCodeConnector != null) {
+      throw StateError('Disconnect the current Claude Code session first');
+    }
+    final connector = ClaudeCodeConnector(
+      workingDirectory: workingDirectory,
+      sessionId: sessionId,
+      executable: claudeCodeExecutable,
+      onNotice: (message) => bus.publish(LogEntry(message, severity: 'warning')),
+    );
+    try {
+      final node = await connector.connect();
+      _claudeCodeConnector = connector;
+      await registry.register(node);
+      return node;
+    } catch (_) {
+      await connector.close();
+      rethrow;
+    }
+  }
+
+  Future<void> disconnectClaudeCode(String nodeId) async {
+    final connector = _claudeCodeConnector;
+    if (connector == null || nodeId != connector.nodeId) return;
+    _claudeCodeConnector = null;
+    for (final taskId in _claudeCodeTaskOwners.entries
+        .where((entry) => entry.value == connector)
+        .map((entry) => entry.key)
+        .toList()) {
+      try {
+        await connector.cancelTask(taskId);
+      } catch (_) {
+        // close() below stops any remaining process.
+      }
+      _claudeCodeTaskOwners.remove(taskId);
+    }
+    await connector.close();
+    await registry.remove(nodeId);
+  }
+
+  Future<BridgeNode> connectAntigravity({
+    required String workingDirectory,
+    String? conversationId,
+  }) async {
+    final current = _antigravityConnector;
+    if (current != null) {
+      throw StateError('Disconnect the current Antigravity session first');
+    }
+    final connector = AntigravityConnector(
+      workingDirectory: workingDirectory,
+      conversationId: conversationId,
+      executable: antigravityExecutable,
+      onNotice: (message) => bus.publish(LogEntry(message, severity: 'warning')),
+    );
+    try {
+      final node = await connector.connect();
+      _antigravityConnector = connector;
+      await registry.register(node);
+      return node;
+    } catch (_) {
+      await connector.close();
+      rethrow;
+    }
+  }
+
+  Future<void> disconnectAntigravity(String nodeId) async {
+    final connector = _antigravityConnector;
+    if (connector == null || nodeId != connector.nodeId) return;
+    _antigravityConnector = null;
+    for (final taskId in _antigravityTaskOwners.entries
+        .where((entry) => entry.value == connector)
+        .map((entry) => entry.key)
+        .toList()) {
+      try {
+        await connector.cancelTask(taskId);
+      } catch (_) {
+        // close() below stops any remaining process.
+      }
+      _antigravityTaskOwners.remove(taskId);
+    }
+    await connector.close();
+    await registry.remove(nodeId);
+  }
+
+  Future<BridgeNode> connectCodex({
+    required String serverUrl,
+    required String threadId,
+  }) async {
+    final current = _codexConnector;
+    if (current != null) {
+      if (current.threadId != threadId) {
+        throw StateError('Disconnect the current Codex thread first');
+      }
+      await disconnectCodex(current.nodeId);
+    }
+
+    final connector = CodexConnector(
+      serverUrl: serverUrl,
+      threadId: threadId,
+      onNotice: (message) => bus.publish(LogEntry(message, severity: 'warning')),
+    );
+    try {
+      final node = await connector.connect();
+      _codexConnector = connector;
+      await registry.register(node);
+      unawaited(connector.closed.then((_) async {
+        if (identical(_codexConnector, connector)) {
+          await registry.updateHealth(node.id, 'unavailable');
+        }
+      }));
+      return node;
+    } catch (_) {
+      await connector.close();
+      rethrow;
+    }
+  }
+
+  Future<void> disconnectCodex(String nodeId) async {
+    final connector = _codexConnector;
+    if (connector == null || nodeId != connector.nodeId) return;
+    _codexConnector = null;
+    for (final taskId in _codexTaskOwners.entries
+        .where((entry) => entry.value == connector)
+        .map((entry) => entry.key)
+        .toList()) {
+      try {
+        await connector.cancelTask(taskId);
+      } catch (_) {
+        // Closing the connection below fails any remaining request.
+      }
+      _codexTaskOwners.remove(taskId);
+    }
+    await connector.close();
+    await registry.remove(nodeId);
+  }
 
   Future<BridgeNode> connectOpenCode({
     required String serverUrl,
@@ -401,7 +555,15 @@ class WsServer {
             ws.add(jsonEncode({
               'type': 'NODE_LIST',
               'payload': {
-                'nodes': nodes.map((n) => {'id': n.id, 'name': n.name}).toList()
+                'nodes': nodes
+                    .map((n) => {
+                          'id': n.id,
+                          'name': n.name,
+                          'kind': n.kind.name,
+                          'capabilities': n.capabilities,
+                          'taskDomains': n.taskDomains,
+                        })
+                    .toList()
               },
             }));
           });
@@ -506,9 +668,18 @@ class WsServer {
     if (projectStore != null && !await projectStore!.contains(projectId)) {
       throw FormatException('Unknown project: $projectId');
     }
-    // A new explicit dispatch is also the user's intent to resume after an
-    // emergency stop.
-    engine.reset();
+    // A dispatch typed by the user is also their intent to resume after an
+    // emergency stop. A request from an outside agent (for example the Claude
+    // Desktop extension, which marks itself origin=external) must never undo
+    // the user's Stop.
+    if (payload['origin'] == 'external') {
+      if (engine.isStopped) {
+        throw const FormatException(
+            'Bridge is stopped; resume it in Bridge before delegating');
+      }
+    } else {
+      engine.reset();
+    }
     final taskText = payload['taskText'] as String;
     final workflowId = payload['workflowId'] as String?;
     final overrideNodeId = payload['targetNodeId'] as String?;
@@ -587,14 +758,37 @@ ${sources.isEmpty ? '(No source links were visible on the connected page.)' : so
     var handoffs = 0;
     while (true) {
       final isOpenCode = task.targetNodeId.startsWith('opencode:');
+      final isCodex = task.targetNodeId.startsWith(CodexConnector.nodeIdPrefix);
       if (isOpenCode && task.attachments.isNotEmpty) {
         throw AdapterDispatchException(
             'OpenCode session connector does not support file attachments');
       }
+      if (isCodex && task.attachments.isNotEmpty) {
+        throw AdapterDispatchException(
+            'Codex thread connector does not support file attachments');
+      }
+      final isAntigravity =
+          task.targetNodeId.startsWith(AntigravityConnector.nodeIdPrefix);
+      if (isAntigravity && task.attachments.isNotEmpty) {
+        throw AdapterDispatchException(
+            'Antigravity connector does not support file attachments');
+      }
+      final isClaudeCode =
+          task.targetNodeId.startsWith(ClaudeCodeConnector.nodeIdPrefix);
+      if (isClaudeCode && task.attachments.isNotEmpty) {
+        throw AdapterDispatchException(
+            'Claude Code connector does not support file attachments');
+      }
       final output = isOpenCode
           ? await _sendTaskToOpenCode(task, prompt)
-          : await _sendTaskOnce(task, prompt,
-              includeAttachments: handoffs == 0);
+          : isCodex
+              ? await _sendTaskToCodex(task, prompt)
+              : isAntigravity
+                  ? await _sendTaskToAntigravity(task, prompt)
+                  : isClaudeCode
+                      ? await _sendTaskToClaudeCode(task, prompt)
+                      : await _sendTaskOnce(task, prompt,
+                          includeAttachments: handoffs == 0);
       final directive =
           output == null ? null : BridgeProtocol.parseDelegation(output);
       if (directive == null) return output;
@@ -644,6 +838,81 @@ ${sources.isEmpty ? '(No source links were visible on the connected page.)' : so
     } finally {
       if (_openCodeTaskOwners[task.id] == connector) {
         _openCodeTaskOwners.remove(task.id);
+      }
+    }
+  }
+
+  Future<String?> _sendTaskToCodex(BridgeTask task, String prompt) async {
+    final connector = _codexConnector;
+    if (connector == null || task.targetNodeId != connector.nodeId) {
+      throw AdapterDispatchException('Codex thread is unavailable');
+    }
+    _codexTaskOwners[task.id] = connector;
+    try {
+      return await connector.sendTask(task, prompt: prompt);
+    } catch (error) {
+      if (error is CodexSessionBusyException) {
+        throw AdapterDispatchException(
+          'Codex thread already has active work; try again when it finishes',
+        );
+      }
+      await registry.updateHealth(task.targetNodeId, 'unavailable');
+      throw AdapterDispatchException(
+        'Codex thread request failed: ${SecretRedactor.redact(error.toString())}',
+      );
+    } finally {
+      if (_codexTaskOwners[task.id] == connector) {
+        _codexTaskOwners.remove(task.id);
+      }
+    }
+  }
+
+  Future<String?> _sendTaskToAntigravity(BridgeTask task, String prompt) async {
+    final connector = _antigravityConnector;
+    if (connector == null || task.targetNodeId != connector.nodeId) {
+      throw AdapterDispatchException('Antigravity session is unavailable');
+    }
+    _antigravityTaskOwners[task.id] = connector;
+    try {
+      return await connector.sendTask(task, prompt: prompt);
+    } catch (error) {
+      if (error is AntigravitySessionBusyException) {
+        throw AdapterDispatchException(
+          'Antigravity already has active work; try again when it finishes',
+        );
+      }
+      await registry.updateHealth(task.targetNodeId, 'unavailable');
+      throw AdapterDispatchException(
+        'Antigravity request failed: ${SecretRedactor.redact(error.toString())}',
+      );
+    } finally {
+      if (_antigravityTaskOwners[task.id] == connector) {
+        _antigravityTaskOwners.remove(task.id);
+      }
+    }
+  }
+
+  Future<String?> _sendTaskToClaudeCode(BridgeTask task, String prompt) async {
+    final connector = _claudeCodeConnector;
+    if (connector == null || task.targetNodeId != connector.nodeId) {
+      throw AdapterDispatchException('Claude Code session is unavailable');
+    }
+    _claudeCodeTaskOwners[task.id] = connector;
+    try {
+      return await connector.sendTask(task, prompt: prompt);
+    } catch (error) {
+      if (error is ClaudeCodeSessionBusyException) {
+        throw AdapterDispatchException(
+          'Claude Code already has active work; try again when it finishes',
+        );
+      }
+      await registry.updateHealth(task.targetNodeId, 'unavailable');
+      throw AdapterDispatchException(
+        'Claude Code request failed: ${SecretRedactor.redact(error.toString())}',
+      );
+    } finally {
+      if (_claudeCodeTaskOwners[task.id] == connector) {
+        _claudeCodeTaskOwners.remove(task.id);
       }
     }
   }
@@ -705,6 +974,21 @@ ${sources.isEmpty ? '(No source links were visible on the connected page.)' : so
     final openCode = _openCodeTaskOwners.remove(bridgeTaskId);
     if (openCode != null) {
       await openCode.cancelTask(bridgeTaskId);
+      return;
+    }
+    final codex = _codexTaskOwners.remove(bridgeTaskId);
+    if (codex != null) {
+      await codex.cancelTask(bridgeTaskId);
+      return;
+    }
+    final antigravity = _antigravityTaskOwners.remove(bridgeTaskId);
+    if (antigravity != null) {
+      await antigravity.cancelTask(bridgeTaskId);
+      return;
+    }
+    final claudeCode = _claudeCodeTaskOwners.remove(bridgeTaskId);
+    if (claudeCode != null) {
+      await claudeCode.cancelTask(bridgeTaskId);
       return;
     }
     final externalTaskId = _bridgeTaskExternalIds.remove(bridgeTaskId);
@@ -1007,6 +1291,15 @@ ${sources.isEmpty ? '(No source links were visible on the connected page.)' : so
     final openCode = _openCodeConnector;
     _openCodeConnector = null;
     await openCode?.close();
+    final codex = _codexConnector;
+    _codexConnector = null;
+    await codex?.close();
+    final antigravity = _antigravityConnector;
+    _antigravityConnector = null;
+    await antigravity?.close();
+    final claudeCode = _claudeCodeConnector;
+    _claudeCodeConnector = null;
+    await claudeCode?.close();
     for (final ws in _clients) {
       try {
         await ws.close();

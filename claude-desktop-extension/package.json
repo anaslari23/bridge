@@ -1,0 +1,21 @@
+{
+  "name": "brigade-bridge-claude-desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Claude Desktop extension that lets Claude delegate work to apps connected to Brigade Bridge",
+  "type": "module",
+  "engines": { "node": ">=18" },
+  "scripts": {
+    "test": "node --test \"test/**/*.test.js\"",
+    "validate": "mcpb validate manifest.json",
+    "pack": "./build.sh"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.32.2",
+    "ws": "8.23.0",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@anthropic-ai/mcpb": "2.1.2"
+  }
+}

@@ -58,6 +58,12 @@ class OverlayShell extends StatefulWidget {
     this.onCopyLocalAuthToken,
     this.onConnectOpenCode,
     this.onDisconnectOpenCode,
+    this.onConnectCodex,
+    this.onDisconnectCodex,
+    this.onConnectAntigravity,
+    this.onDisconnectAntigravity,
+    this.onConnectClaudeCode,
+    this.onDisconnectClaudeCode,
     this.artifacts = const [],
     this.onOpenArtifact,
     this.onRetry,
@@ -122,6 +128,14 @@ class OverlayShell extends StatefulWidget {
   final VoidCallback? onCopyLocalAuthToken;
   final void Function(String serverUrl, String sessionId)? onConnectOpenCode;
   final ValueChanged<String>? onDisconnectOpenCode;
+  final void Function(String serverUrl, String threadId)? onConnectCodex;
+  final ValueChanged<String>? onDisconnectCodex;
+  final void Function(String workingDirectory, String? conversationId)?
+      onConnectAntigravity;
+  final ValueChanged<String>? onDisconnectAntigravity;
+  final void Function(String workingDirectory, String? sessionId)?
+      onConnectClaudeCode;
+  final ValueChanged<String>? onDisconnectClaudeCode;
   final List<ArtifactCreated> artifacts;
   final ValueChanged<String>? onOpenArtifact;
   final VoidCallback? onRetry;
@@ -192,6 +206,12 @@ class _OverlayShellState extends State<OverlayShell> {
               onCopyLocalAuthToken: widget.onCopyLocalAuthToken,
               onConnectOpenCode: widget.onConnectOpenCode,
               onDisconnectOpenCode: widget.onDisconnectOpenCode,
+              onConnectCodex: widget.onConnectCodex,
+              onDisconnectCodex: widget.onDisconnectCodex,
+              onConnectAntigravity: widget.onConnectAntigravity,
+              onDisconnectAntigravity: widget.onDisconnectAntigravity,
+              onConnectClaudeCode: widget.onConnectClaudeCode,
+              onDisconnectClaudeCode: widget.onDisconnectClaudeCode,
               artifacts: widget.artifacts,
               onOpenArtifact: widget.onOpenArtifact,
               onRetry: widget.onRetry,
